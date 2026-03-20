@@ -297,8 +297,45 @@ class _LoginPageState extends State<LoginPage> {
                     ],
                   ),
 
+                  // ── Google button ──
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Google sign-in coming soon'),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                      icon: Image.asset(
+                        'assets/icons/google_flaticon.png',
+                        width: 20,
+                        height: 20,
+                      ),
+                      label: const Text(
+                        'Continue with Google',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: _darkText,
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(
+                            color: _borderColor, width: 1.2),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+
                   // ── Bottom navigation ──
-                  const SizedBox(height: 48),
+                  const SizedBox(height: 40),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: <Widget>[
