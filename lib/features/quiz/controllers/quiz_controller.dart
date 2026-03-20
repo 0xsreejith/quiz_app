@@ -1,6 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
-import 'package:quiz_app/core/firebase/firestore_service.dart';
+import 'package:quiz_app/core/services/firestore_service.dart';
 import 'package:quiz_app/features/quiz/data/models/question_model.dart';
 import 'package:quiz_app/features/quiz/data/services/quiz_api_service.dart';
 import 'package:quiz_app/routes/app_routes.dart';

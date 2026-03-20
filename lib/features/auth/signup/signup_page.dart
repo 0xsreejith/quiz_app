@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:quiz_app/features/auth/controller/auth_controller.dart';
+import 'package:quiz_app/features/auth/controllers/auth_controller.dart';
 
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key});

@@ -1,5 +1,5 @@
 import 'package:get/get.dart';
-import 'package:quiz_app/core/firebase/auth_service.dart';
+import 'package:quiz_app/core/services/auth_service.dart';
 import 'package:quiz_app/routes/app_routes.dart';
 
 class SplashController extends GetxController {

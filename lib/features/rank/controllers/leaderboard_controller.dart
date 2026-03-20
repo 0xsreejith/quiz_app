@@ -1,5 +1,5 @@
 import 'package:get/get.dart';
-import 'package:quiz_app/core/firebase/firestore_service.dart';
+import 'package:quiz_app/core/services/firestore_service.dart';
 
 class LeaderboardController extends GetxController {
   final FirestoreService _firestoreService = FirestoreService();
