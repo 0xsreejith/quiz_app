@@ -15,7 +15,7 @@ class HomePage extends StatelessWidget {
             const Text('Home Page'),
             const SizedBox(height: 12),
             ElevatedButton(
-              onPressed: () => Get.toNamed(AppRoutes.QUIZ),
+              onPressed: () => Get.toNamed(AppRoutes.quiz),
               child: const Text('Start Quiz'),
             ),
           ],

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:quiz_app/modules/auth/controller/auth_controller.dart';
+import 'package:quiz_app/features/auth/controller/auth_controller.dart';
 
 class ProfilePage extends GetView<AuthController> {
   const ProfilePage({super.key});

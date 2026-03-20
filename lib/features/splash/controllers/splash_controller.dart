@@ -19,8 +19,8 @@ class SplashController extends GetxController {
 
     final bool isLoggedIn = _authService.currentUser != null;
     final String targetRoute = isLoggedIn
-        ? AppRoutes.APP_SHELL
-        : AppRoutes.LOGIN;
+        ? AppRoutes.appShell
+        : AppRoutes.login;
     Get.offAllNamed(targetRoute);
   }
 }

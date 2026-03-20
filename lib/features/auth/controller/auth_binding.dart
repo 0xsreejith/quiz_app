@@ -1,7 +1,7 @@
 import 'package:get/get.dart';
 import 'package:quiz_app/core/firebase/auth_service.dart';
 import 'package:quiz_app/core/firebase/firestore_service.dart';
-import 'package:quiz_app/modules/auth/controller/auth_controller.dart';
+import 'package:quiz_app/features/auth/controller/auth_controller.dart';
 
 class AuthBinding extends Bindings {
   @override

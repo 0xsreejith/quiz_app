@@ -36,7 +36,7 @@ class AuthController extends GetxController {
         email: trimmedEmail,
         password: password,
       );
-      Get.offAllNamed(AppRoutes.APP_SHELL);
+      Get.offAllNamed(AppRoutes.appShell);
     } on FirebaseAuthException catch (error) {
       _showError(_mapFirebaseAuthError(error));
     } catch (_) {
@@ -73,7 +73,7 @@ class AuthController extends GetxController {
         );
       }
 
-      Get.offAllNamed(AppRoutes.APP_SHELL);
+      Get.offAllNamed(AppRoutes.appShell);
     } on FirebaseAuthException catch (error) {
       _showError(_mapFirebaseAuthError(error));
     } catch (_) {
@@ -86,7 +86,7 @@ class AuthController extends GetxController {
   Future<void> logout() async {
     try {
       await _authService.signOut();
-      Get.offAllNamed(AppRoutes.LOGIN);
+      Get.offAllNamed(AppRoutes.login);
     } catch (_) {
       _showError('Unable to log out. Please try again.');
     }

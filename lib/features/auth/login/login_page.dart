@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:quiz_app/modules/auth/controller/auth_controller.dart';
+import 'package:quiz_app/features/auth/controller/auth_controller.dart';
 import 'package:quiz_app/routes/app_routes.dart';
 
 class LoginPage extends StatefulWidget {
@@ -136,7 +136,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     const SizedBox(height: 8),
                     TextButton(
-                      onPressed: () => Get.toNamed(AppRoutes.SIGNUP),
+                      onPressed: () => Get.toNamed(AppRoutes.signup),
                       child: const Text("Don't have an account? Create one"),
                     ),
                   ],
