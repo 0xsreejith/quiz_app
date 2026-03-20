@@ -1,48 +1,63 @@
-# Miscellaneous
-*.class
+# ----------------------------
+# OS / Misc
+# ----------------------------
+.DS_Store
 *.log
+*.class
 *.pyc
 *.swp
-.DS_Store
-.atom/
-.build/
-.buildlog/
-.history
-.svn/
-.swiftpm/
-migrate_working_dir/
 
-# IntelliJ related
+# ----------------------------
+# IDE
+# ----------------------------
+.idea/
 *.iml
 *.ipr
 *.iws
-.idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
+# VS Code (keep if team shares settings)
 #.vscode/
 
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
+# ----------------------------
+# Flutter / Dart
+# ----------------------------
 .dart_tool/
+.packages
 .flutter-plugins-dependencies
-.pub-cache/
 .pub/
-/build/
-/coverage/
+.pub-cache/
+build/
+coverage/
 
-# Symbolication related
-app.*.symbols
+# iOS
+ios/Flutter/.last_build_id
 
-# Obfuscation related
-app.*.map.json
+# Android build
+android/app/debug
+android/app/profile
+android/app/release
 
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
-
-# FVM Version Cache
+# ----------------------------
+# FVM (IMPORTANT)
+# ----------------------------
 .fvm/
+
+# DO NOT ignore this
+!.fvmrc
+
+# ----------------------------
+# ENV (VERY IMPORTANT)
+# ----------------------------
+.env
+.env.*
+!.env.example
+
+# ----------------------------
+# Firebase Admin (SECRET)
+# ----------------------------
+serviceAccountKey.json
+
+# ----------------------------
+# Optional (if generated)
+# ----------------------------
+*.lock
