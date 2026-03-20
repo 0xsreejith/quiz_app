@@ -48,7 +48,6 @@ class AuthService {
         await GoogleSignIn.instance.initialize();
         _isGoogleSignInInitialized = true;
       } catch (error) {
-        // If initialization fails, we'll handle it in the calling method
         rethrow;
       }
     }
@@ -58,7 +57,7 @@ class AuthService {
   bool _isCurrentUserFromGoogle() {
     final User? user = _firebaseAuth.currentUser;
     if (user == null) return false;
-    
+
     return user.providerData.any(
       (userInfo) => userInfo.providerId == GoogleAuthProvider.PROVIDER_ID,
     );
@@ -69,42 +68,33 @@ class AuthService {
     try {
       await _ensureGoogleSignInInitialized();
 
-      // Check if platform supports authenticate method
       if (GoogleSignIn.instance.supportsAuthenticate()) {
         return await _signInWithGoogleNative();
       } else {
-        // Fallback for web or unsupported platforms
         return await _signInWithGoogleWeb();
       }
     } on GoogleSignInException catch (e) {
-      // Handle Google Sign-In specific exceptions
       if (e.code.name == 'canceled') {
-        // User cancelled the sign-in process
         return null;
       }
       rethrow;
     } catch (error) {
-      // Rethrow for controller to handle
       rethrow;
     }
   }
 
   /// Native Google Sign-In flow (Android/iOS)
   Future<UserCredential> _signInWithGoogleNative() async {
-    // Trigger the authentication flow
     final GoogleSignInAccount googleUser = await GoogleSignIn.instance.authenticate(
       scopeHint: ['email'],
     );
 
-    // Get authentication tokens (synchronous in v7)
     final GoogleSignInAuthentication googleAuth = googleUser.authentication;
 
-    // Create Firebase credential
     final credential = GoogleAuthProvider.credential(
       idToken: googleAuth.idToken,
     );
 
-    // Sign in to Firebase with the Google credential
     return await _firebaseAuth.signInWithCredential(credential);
   }
 
@@ -114,11 +104,9 @@ class AuthService {
       throw UnsupportedError('Web sign-in method called on non-web platform');
     }
 
-    // Create Google auth provider for web
     final GoogleAuthProvider googleProvider = GoogleAuthProvider();
     googleProvider.addScope('email');
 
-    // Use Firebase's built-in popup for web
     return await _firebaseAuth.signInWithPopup(googleProvider);
   }
 
@@ -128,19 +116,22 @@ class AuthService {
 
   /// Signs out the current user from both Firebase and Google (if applicable)
   Future<void> signOut() async {
-    try {
-      // Always sign out from Firebase first
-      await _firebaseAuth.signOut();
+    // ✅ FIX: Check the Google provider BEFORE signing out from Firebase,
+    // because signOut() clears currentUser, making the check always return false.
+    final bool wasGoogleUser = _isCurrentUserFromGoogle();
 
-      // Only sign out from Google if:
-      // 1. User was signed in with Google
-      // 2. GoogleSignIn can be safely initialized
-      if (_isCurrentUserFromGoogle()) {
+    try {
+      // Sign out from Google first (if applicable), while currentUser is still set
+      if (wasGoogleUser) {
         await _signOutFromGoogle();
       }
+
+      // Then sign out from Firebase
+      await _firebaseAuth.signOut();
     } catch (error) {
-      // If Google sign-out fails, we've already signed out from Firebase
-      // This ensures the user is still logged out from the app
+      // Attempt Firebase sign-out even if Google sign-out failed,
+      // so the user is always logged out of the app.
+      await _firebaseAuth.signOut();
       rethrow;
     }
   }
@@ -148,14 +139,9 @@ class AuthService {
   /// Safely signs out from Google Sign-In
   Future<void> _signOutFromGoogle() async {
     try {
-      // Ensure GoogleSignIn is initialized before using it
       await _ensureGoogleSignInInitialized();
-      
-      // Sign out from Google
       await GoogleSignIn.instance.signOut();
     } catch (error) {
-      // Log error but don't throw - Firebase sign-out already succeeded
-      // In production, you might want to log this to your error tracking service
       debugPrint('Google Sign-Out Error: $error');
     }
   }
