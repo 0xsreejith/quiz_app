@@ -299,36 +299,45 @@ class _LoginPageState extends State<LoginPage> {
 
                   // ── Google button ──
                   const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Google sign-in coming soon'),
-                            duration: Duration(seconds: 2),
+                  Obx(
+                    () => SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: OutlinedButton.icon(
+                        onPressed: _authController.isGoogleLoading.value
+                            ? null
+                            : () => _authController.loginWithGoogle(),
+                        icon: _authController.isGoogleLoading.value
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(_darkText),
+                                ),
+                              )
+                            : Image.asset(
+                                'assets/icons/google_flaticon.png',
+                                width: 20,
+                                height: 20,
+                              ),
+                        label: Text(
+                          _authController.isGoogleLoading.value
+                              ? 'Signing in...'
+                              : 'Continue with Google',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: _darkText,
                           ),
-                        );
-                      },
-                      icon: Image.asset(
-                        'assets/icons/google_flaticon.png',
-                        width: 20,
-                        height: 20,
-                      ),
-                      label: const Text(
-                        'Continue with Google',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: _darkText,
                         ),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(
-                            color: _borderColor, width: 1.2),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(
+                              color: _borderColor, width: 1.2),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          disabledForegroundColor: _darkText.withValues(alpha: 0.6),
                         ),
                       ),
                     ),

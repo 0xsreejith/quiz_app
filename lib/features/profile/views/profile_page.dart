@@ -150,9 +150,11 @@ class ProfilePage extends GetView<AuthController> {
                   const SizedBox(height: 20),
 
                   // Name
-                  const Text(
-                    'Julian D. Sterling',
-                    style: TextStyle(
+                  Text(
+                    controller.currentUserEmail.isNotEmpty 
+                        ? controller.currentUserEmail.split('@')[0].toUpperCase()
+                        : 'USER',
+                    style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
                       color: _textDark,
@@ -161,10 +163,12 @@ class ProfilePage extends GetView<AuthController> {
                   ),
                   const SizedBox(height: 6),
 
-                  // Subtitle
-                  const Text(
-                    'SENIOR QUANTITATIVE ANALYST • SINCE 2023',
-                    style: TextStyle(
+                  // Subtitle with user email
+                  Text(
+                    controller.currentUserEmail.isNotEmpty 
+                        ? controller.currentUserEmail.toUpperCase()
+                        : 'NO EMAIL AVAILABLE',
+                    style: const TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
                       color: _textMuted,

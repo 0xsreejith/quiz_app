@@ -16,6 +16,7 @@ class AuthController extends GetxController {
 
   final RxBool isLoginLoading = false.obs;
   final RxBool isSignupLoading = false.obs;
+  final RxBool isGoogleLoading = false.obs;
 
   String get currentUserEmail => _authService.currentUser?.email ?? '';
 
@@ -89,6 +90,39 @@ class AuthController extends GetxController {
       Get.offAllNamed(AppRoutes.login);
     } catch (_) {
       _showError('Unable to log out. Please try again.');
+    }
+  }
+
+  Future<void> loginWithGoogle() async {
+    if (isGoogleLoading.value) {
+      return;
+    }
+
+    isGoogleLoading.value = true;
+    try {
+      final UserCredential? credential = await _authService.signInWithGoogle();
+      
+      // User cancelled the sign-in process
+      if (credential == null) {
+        return;
+      }
+
+      final User? user = credential.user;
+      if (user != null) {
+        // Create user document in Firestore if it's a new user
+        await _firestoreService.createUserDocument(
+          uid: user.uid,
+          email: user.email ?? '',
+        );
+      }
+
+      Get.offAllNamed(AppRoutes.appShell);
+    } on FirebaseAuthException catch (error) {
+      _showError(_mapFirebaseAuthError(error));
+    } catch (error) {
+      _showError('Unable to sign in with Google. Please try again.');
+    } finally {
+      isGoogleLoading.value = false;
     }
   }
 
