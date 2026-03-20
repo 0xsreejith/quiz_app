@@ -9,9 +9,19 @@ class LoginPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Center(
-        child: ElevatedButton(
-          onPressed: () => Get.offAllNamed(AppRoutes.APP_SHELL),
-          child: const Text('Login'),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            const Text(
+              'Quiz App',
+              style: TextStyle(fontSize: 28, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () => Get.offAllNamed(Routes.APP_SHELL),
+              child: const Text('Continue'),
+            ),
+          ],
         ),
       ),
     );

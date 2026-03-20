@@ -15,8 +15,8 @@ class QuizApp extends StatelessWidget {
     return GetMaterialApp(
       title: 'Quiz App',
       debugShowCheckedModeBanner: false,
-      initialRoute: AppRoutes.SPLASH,
-      getPages: AppPages.pages,
+      initialRoute: Routes.SPLASH,
+      getPages: AppPages.routes,
     );
   }
 }
