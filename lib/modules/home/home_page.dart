@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:quiz_app/features/app_shell/views/app_shell_page.dart';
 
-class AppShell extends StatelessWidget {
-  const AppShell({super.key});
+class HomeModulePage extends StatelessWidget {
+  const HomeModulePage({super.key});
 
   @override
   Widget build(BuildContext context) {

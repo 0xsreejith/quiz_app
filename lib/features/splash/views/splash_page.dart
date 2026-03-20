@@ -1,24 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:quiz_app/routes/app_routes.dart';
+import 'package:quiz_app/features/splash/controllers/splash_controller.dart';
 
-class SplashPage extends StatefulWidget {
+class SplashPage extends GetView<SplashController> {
   const SplashPage({super.key});
-
-  @override
-  State<SplashPage> createState() => _SplashPageState();
-}
-
-class _SplashPageState extends State<SplashPage> {
-  @override
-  void initState() {
-    super.initState();
-    Future<void>.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        Get.offNamed(Routes.LOGIN);
-      }
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,6 +18,8 @@ class _SplashPageState extends State<SplashPage> {
               'Quiz App',
               style: TextStyle(fontSize: 28, fontWeight: FontWeight.w600),
             ),
+            SizedBox(height: 20),
+            CircularProgressIndicator(),
           ],
         ),
       ),
