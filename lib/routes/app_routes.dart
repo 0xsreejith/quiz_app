@@ -4,4 +4,5 @@ abstract final class AppRoutes {
   static const String signup = '/signup';
   static const String appShell = '/app-shell';
   static const String quiz = '/quiz';
+  static const String result = '/result';
 }

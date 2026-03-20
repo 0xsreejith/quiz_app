@@ -1,6 +1,8 @@
 import 'package:get/get.dart';
 import 'package:quiz_app/features/app_shell/bindings/app_shell_binding.dart';
+import 'package:quiz_app/features/quiz/bindings/quiz_binding.dart';
 import 'package:quiz_app/features/quiz/views/quiz_view.dart';
+import 'package:quiz_app/features/quiz/views/result_page.dart';
 import 'package:quiz_app/features/splash/bindings/splash_binding.dart';
 import 'package:quiz_app/features/splash/views/splash_page.dart';
 import 'package:quiz_app/features/auth/login/login_page.dart';
@@ -24,6 +26,14 @@ class AppPages {
       page: () => const HomeFeaturePage(),
       binding: AppShellBinding(),
     ),
-    GetPage<QuizView>(name: AppRoutes.quiz, page: () => const QuizView()),
+    GetPage<QuizView>(
+      name: AppRoutes.quiz,
+      page: () => const QuizView(),
+      binding: QuizBinding(),
+    ),
+    GetPage<ResultPage>(
+      name: AppRoutes.result,
+      page: () => const ResultPage(),
+    ),
   ];
 }
