@@ -39,4 +39,16 @@ abstract final class AppColors {
   static const Color chipBgSlate = Color(0xFFE2E8F0);
   static const Color chipBgGreen = Color(0xFFD1FAE5);
   static const Color chipBgLightBlue = Color(0xFFDBEAFE);
+
+  // ── Home Screen ────────────────────────────────────────────────────
+  static const Color featuredGradientStart = Color(0xFF1E2A5A);
+  static const Color featuredGradientEnd = Color(0xFF2E3F80);
+  static const Color liveBadgeRed = Color(0xFFEF4444);
+  static const Color searchBarBg = Color(0xFFF9FAFB);
+  static const Color searchBarBorder = Color(0xFFE5E7EB);
+  static const Color surfaceWhite = Color(0xFFF8F9FC);
+  static const Color performerHighlight = Color(0xFFF0F4FF);
+  static const Color joinButton = Color(0xFF3B4FBF);
+  static const Color categoryPanelBg = Colors.white;
+  static const Color white = Colors.white;
 }

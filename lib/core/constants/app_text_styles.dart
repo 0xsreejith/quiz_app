@@ -129,4 +129,102 @@ abstract final class AppTextStyles {
         color: color ?? AppColors.darkNavy,
         letterSpacing: 0.5,
       );
+
+  // ── Home Screen ────────────────────────────────────────────────────
+
+  /// Bold section title (e.g. "Featured Quizzes").
+  static const TextStyle homeSectionTitle = TextStyle(
+    fontSize: 22,
+    fontWeight: FontWeight.w800,
+    color: AppColors.textDarkest,
+    letterSpacing: -0.3,
+  );
+
+  /// Featured card large title.
+  static const TextStyle featuredTitle = TextStyle(
+    fontSize: 26,
+    fontWeight: FontWeight.w800,
+    color: Colors.white,
+    height: 1.2,
+    letterSpacing: -0.3,
+  );
+
+  /// Featured card description.
+  static const TextStyle featuredDescription = TextStyle(
+    fontSize: 13,
+    color: Color(0xFFB0B8D0),
+    height: 1.4,
+  );
+
+  /// CTA button text.
+  static const TextStyle ctaButton = TextStyle(
+    fontSize: 15,
+    fontWeight: FontWeight.w700,
+    color: AppColors.textDarkest,
+    letterSpacing: 0.2,
+  );
+
+  /// Performer name in leaderboard.
+  static const TextStyle performerName = TextStyle(
+    fontSize: 15,
+    fontWeight: FontWeight.w600,
+    color: AppColors.textDark,
+  );
+
+  /// Performer subtitle / tag.
+  static TextStyle performerSubtitle({Color? color}) => TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+        color: color ?? AppColors.textMuted,
+        letterSpacing: 0.5,
+      );
+
+  /// Performer points value.
+  static const TextStyle performerPoints = TextStyle(
+    fontSize: 18,
+    fontWeight: FontWeight.w800,
+    color: AppColors.textDarkest,
+  );
+
+  /// Activity title.
+  static const TextStyle activityTitle = TextStyle(
+    fontSize: 15,
+    fontWeight: FontWeight.w600,
+    color: AppColors.textDark,
+  );
+
+  /// Activity meta text (date, status).
+  static const TextStyle activityMeta = TextStyle(
+    fontSize: 11,
+    color: AppColors.textMuted,
+    letterSpacing: 0.3,
+  );
+
+  /// Large accuracy percentage.
+  static const TextStyle activityAccuracy = TextStyle(
+    fontSize: 28,
+    fontWeight: FontWeight.w800,
+    color: AppColors.textDarkest,
+    height: 1,
+  );
+
+  /// Search bar placeholder.
+  static const TextStyle searchPlaceholder = TextStyle(
+    fontSize: 14,
+    color: AppColors.textMuted,
+  );
+
+  /// Category panel title.
+  static const TextStyle categoryTitle = TextStyle(
+    fontSize: 15,
+    fontWeight: FontWeight.w700,
+    color: AppColors.textDark,
+  );
+
+  /// Category panel subtitle.
+  static const TextStyle categorySubtitle = TextStyle(
+    fontSize: 11,
+    fontWeight: FontWeight.w600,
+    letterSpacing: 0.5,
+  );
 }

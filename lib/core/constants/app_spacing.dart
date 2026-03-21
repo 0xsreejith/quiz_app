@@ -36,4 +36,13 @@ abstract final class AppSpacing {
   static const SizedBox verticalXl = SizedBox(height: 20);
   static const SizedBox verticalXxl = SizedBox(height: 24);
   static const SizedBox verticalXxxl = SizedBox(height: 32);
+
+  // ── Home Screen ────────────────────────────────────────────────────
+  static const EdgeInsets homePagePadding =
+      EdgeInsets.symmetric(horizontal: 20);
+  static const double sectionGap = 28;
+  static const double searchBarHeight = 52;
+  static const double searchBarRadius = 28;
+  static const double featuredCardHeight = 320;
+  static const double featuredCardRadius = 24;
 }
