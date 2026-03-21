@@ -25,7 +25,10 @@ class _HomePageState extends State<HomePage> {
   bool _showCategories = false;
   int _carouselPage = 0;
 
-  HomeController get controller => Get.find<HomeController>();
+  // Safe lazy getter — finds the controller only when actually needed,
+  // avoiding LateInitializationError if the controller isn't yet registered
+  // at initState time.
+  HomeController get _controller => Get.find<HomeController>();
 
   @override
   Widget build(BuildContext context) {
@@ -74,7 +77,7 @@ class _HomePageState extends State<HomePage> {
             // ── Featured Quiz Carousel ──
             FeaturedQuizCarousel(
               quizzes: HomeHelpers.featuredQuizzes,
-              onStartQuiz: controller.startQuiz,
+              onStartQuiz: _controller.startQuiz,
               onPageChanged: (index) =>
                   setState(() => _carouselPage = index),
             ),
@@ -105,7 +108,10 @@ class _HomePageState extends State<HomePage> {
             // ── Top Performers Section ──
             Padding(
               padding: AppSpacing.homePagePadding,
-              child: const SectionTitleRow(label: '', title: 'Top Performers'),
+              child: const SectionTitleRow(
+                label: '',
+                title: 'Top Performers',
+              ),
             ),
             const SizedBox(height: 14),
             Padding(
@@ -120,14 +126,19 @@ class _HomePageState extends State<HomePage> {
             // ── Recent Activity Section ──
             Padding(
               padding: AppSpacing.homePagePadding,
-              child: const SectionTitleRow(label: '', title: 'Recent Activity'),
+              child: const SectionTitleRow(
+                label: '',
+                title: 'Recent Activity',
+              ),
             ),
             const SizedBox(height: 14),
+
+            // Uses copyWith() on a cast EdgeInsets to safely add bottom
+            // spacing — avoids calling .add() on abstract EdgeInsetsGeometry.
             ...HomeHelpers.recentActivities.map(
               (a) => Padding(
-                padding: AppSpacing.homePagePadding.add(
-                  const EdgeInsets.only(bottom: 12),
-                ),
+                padding: (AppSpacing.homePagePadding as EdgeInsets)
+                    .copyWith(bottom: 12),
                 child: RecentActivityCard(
                   title: a['title']!,
                   meta: a['meta']!,
@@ -146,7 +157,8 @@ class _HomePageState extends State<HomePage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: AppColors.liveBadgeRed.withValues(alpha: 0.1),
+        // Fixed: replaced invalid .withValues(alpha:) with .withOpacity()
+        color: AppColors.liveBadgeRed.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
