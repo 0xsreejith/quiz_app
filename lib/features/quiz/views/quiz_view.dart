@@ -9,8 +9,19 @@ class QuizView extends GetView<QuizController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF7F8FC),
       appBar: AppBar(
-        title: const Text('Quiz'),
+        title: Obx(() {
+          final emoji = controller.categoryEmoji.value;
+          final name = controller.categoryName.value;
+          if (emoji != null && name != null) {
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [Text(emoji), const SizedBox(width: 8), Text(name)],
+            );
+          }
+          return const Text('Quiz');
+        }),
         centerTitle: true,
         elevation: 0,
       ),
@@ -25,7 +36,7 @@ class QuizView extends GetView<QuizController> {
               padding: const EdgeInsets.all(24),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
+                children: [
                   const Icon(Icons.error_outline, size: 48, color: Colors.red),
                   const SizedBox(height: 16),
                   Text(
@@ -49,67 +60,95 @@ class QuizView extends GetView<QuizController> {
         }
 
         final question = controller.currentQuestion;
-        return Padding(
-          padding: const EdgeInsets.all(20),
+
+        return SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              // Progress indicator
-              LinearProgressIndicator(
-                value: (controller.currentIndex.value + 1) /
-                    controller.totalQuestions,
-                backgroundColor: Colors.grey.shade200,
-                minHeight: 6,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Question ${controller.currentIndex.value + 1} of ${controller.totalQuestions}',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey.shade600,
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Question text
-              Text(
-                question.question,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Options
-              ...question.options.map(
-                (String option) => OptionTile(
-                  option: option,
-                  isSelected: controller.selectedAnswer.value == option,
-                  isCorrect: option == question.correctAnswer,
-                  hasAnswered: controller.hasAnswered.value,
-                  onTap: () => controller.selectAnswer(option),
-                ),
-              ),
-
-              const Spacer(),
-
-              // Next / Finish button
-              Obx(
-                () => ElevatedButton(
-                  onPressed:
-                      controller.hasAnswered.value
-                          ? controller.nextQuestion
-                          : null,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    LinearProgressIndicator(
+                      value:
+                          (controller.currentIndex.value + 1) /
+                          controller.totalQuestions,
+                      backgroundColor: Colors.grey.shade200,
+                      minHeight: 6,
+                      borderRadius: BorderRadius.circular(4),
                     ),
-                  ),
-                  child: Text(
-                    controller.isLastQuestion ? 'Finish' : 'Next',
-                    style: const TextStyle(fontSize: 16),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Question ${controller.currentIndex.value + 1} of ${controller.totalQuestions}',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x0A000000),
+                              blurRadius: 12,
+                              offset: Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          question.question,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      ...question.options.map(
+                        (String option) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: OptionTile(
+                            option: option,
+                            isSelected:
+                                controller.selectedAnswer.value == option,
+                            isCorrect: option == question.correctAnswer,
+                            hasAnswered: controller.hasAnswered.value,
+                            onTap: () => controller.selectAnswer(option),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      ElevatedButton(
+                        onPressed: controller.hasAnswered.value
+                            ? controller.nextQuestion
+                            : null,
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: Text(
+                          controller.isLastQuestion ? 'Finish' : 'Next',
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),

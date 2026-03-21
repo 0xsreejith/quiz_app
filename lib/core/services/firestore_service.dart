@@ -45,4 +45,61 @@ class FirestoreService {
         .map((QueryDocumentSnapshot<Map<String, dynamic>> doc) => doc.data())
         .toList();
   }
+
+  Future<void> saveCategoryScore({
+    required String uid,
+    required int categoryId,
+    required String categoryName,
+    required String categoryEmoji,
+    required int score,
+    required int totalQuestions,
+  }) async {
+    final DocumentReference<Map<String, dynamic>> ref = _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('categoryScores')
+        .doc(categoryId.toString());
+
+    final DocumentSnapshot<Map<String, dynamic>> snapshot = await ref.get();
+    final int currentMax = snapshot.exists
+        ? (snapshot.data()?['maxScore'] as int? ?? 0)
+        : 0;
+    final int attempts = snapshot.exists
+        ? (snapshot.data()?['totalAttempts'] as int? ?? 0)
+        : 0;
+
+    final int newMax = score > currentMax ? score : currentMax;
+    final String badge = _calculateBadge(newMax, totalQuestions);
+
+    await ref.set(<String, dynamic>{
+      'categoryId': categoryId,
+      'categoryName': categoryName,
+      'categoryEmoji': categoryEmoji,
+      'maxScore': newMax,
+      'totalAttempts': attempts + 1,
+      'lastPlayedAt': FieldValue.serverTimestamp(),
+      'badge': badge,
+    }, SetOptions(merge: true));
+  }
+
+  String _calculateBadge(int maxScore, int totalQuestions) {
+    final double percent = maxScore / totalQuestions;
+    if (percent >= 0.9) return 'gold';
+    if (percent >= 0.7) return 'silver';
+    if (percent >= 0.5) return 'bronze';
+    return 'none';
+  }
+
+  Future<List<Map<String, dynamic>>> getCategoryScores(String uid) async {
+    final QuerySnapshot<Map<String, dynamic>> snapshot = await _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('categoryScores')
+        .orderBy('maxScore', descending: true)
+        .get();
+
+    return snapshot.docs
+        .map((QueryDocumentSnapshot<Map<String, dynamic>> doc) => doc.data())
+        .toList();
+  }
 }

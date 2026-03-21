@@ -6,8 +6,18 @@ import 'package:quiz_app/features/quiz/data/models/question_model.dart';
 class QuizApiService {
   static const String _baseUrl = 'https://opentdb.com/api.php';
 
-  Future<List<QuestionModel>> fetchQuestions({int amount = 10}) async {
-    final Uri url = Uri.parse('$_baseUrl?amount=$amount&type=multiple');
+  Future<List<QuestionModel>> fetchQuestions({
+    int amount = 10,
+    int? categoryId,
+    String? difficulty,
+  }) async {
+    final Map<String, String> params = {
+      'amount': amount.toString(),
+      'type': 'multiple',
+      if (categoryId != null) 'category': categoryId.toString(),
+      if (difficulty != null) 'difficulty': difficulty,
+    };
+    final Uri url = Uri.parse(_baseUrl).replace(queryParameters: params);
     final http.Response response = await http.get(url);
 
     if (response.statusCode != 200) {

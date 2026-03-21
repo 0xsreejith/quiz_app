@@ -6,6 +6,6 @@ class QuizBinding extends Bindings {
   @override
   void dependencies() {
     Get.lazyPut<QuizApiService>(QuizApiService.new);
-    Get.lazyPut<QuizController>(QuizController.new);
+    Get.lazyPut<QuizController>(() => QuizController());
   }
 }

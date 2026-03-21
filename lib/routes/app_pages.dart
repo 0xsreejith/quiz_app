@@ -1,6 +1,10 @@
 import 'package:get/get.dart';
 import 'package:quiz_app/features/app_shell/bindings/app_shell_binding.dart';
 import 'package:quiz_app/features/app_shell/views/app_shell_page.dart';
+import 'package:quiz_app/features/categories/bindings/categories_binding.dart';
+import 'package:quiz_app/features/categories/views/categories_page.dart';
+import 'package:quiz_app/features/live/views/live_page.dart';
+import 'package:quiz_app/features/profile/views/profile_page.dart';
 import 'package:quiz_app/features/quiz/bindings/quiz_binding.dart';
 import 'package:quiz_app/features/quiz/views/quiz_view.dart';
 import 'package:quiz_app/features/quiz/views/result_page.dart';
@@ -31,9 +35,19 @@ class AppPages {
       page: () => const QuizView(),
       binding: QuizBinding(),
     ),
-    GetPage<ResultPage>(
-      name: AppRoutes.result,
-      page: () => const ResultPage(),
+    GetPage<ResultPage>(name: AppRoutes.result, page: () => const ResultPage()),
+    GetPage<LivePage>(
+      name: AppRoutes.liveSession,
+      page: () => const LivePage(),
+    ),
+    GetPage<ProfilePage>(
+      name: AppRoutes.profile,
+      page: () => const ProfilePage(),
+    ),
+    GetPage<CategoriesPage>(
+      name: AppRoutes.categories,
+      page: () => const CategoriesPage(),
+      binding: CategoriesBinding(),
     ),
   ];
 }
