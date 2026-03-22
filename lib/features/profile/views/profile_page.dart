@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:quiz_app/core/constants/app_colors.dart';
+import 'package:quiz_app/core/constants/badge_definitions.dart';
 import 'package:quiz_app/core/constants/app_spacing.dart';
 import 'package:quiz_app/core/constants/app_text_styles.dart';
 import 'package:quiz_app/core/widgets/info_card.dart';
@@ -26,32 +27,43 @@ class ProfilePage extends GetView<ProfileController> {
             Obx(() {
               final List<String> topTags = controller.categoryScores
                   .take(3)
-                  .map((Map<String, dynamic> c) =>
-                      (c['categoryName'] as String? ?? '').toUpperCase())
+                  .map(
+                    (Map<String, dynamic> c) =>
+                        (c['categoryName'] as String? ?? '').toUpperCase(),
+                  )
                   .where((String s) => s.isNotEmpty)
                   .toList();
+              final Map<String, dynamic>? badgeMeta =
+                  BadgeDefinitions.getGlobal(controller.globalBadge.value);
 
               return ProfileAvatar(
                 email: Get.find<AuthController>().currentUserEmail,
+                badgeLabel: badgeMeta?['label'] as String? ?? 'Unranked',
                 tags: topTags.isEmpty
                     ? const <String>['NO QUIZZES YET']
                     : topTags,
               );
             }),
             AppSpacing.verticalXxl,
-            Obx(() => StatRow(
-                  stats: <StatData>[
-                    StatData(
-                        label: 'QUIZZES',
-                        value: '${controller.totalPlayed.value}'),
-                    StatData(
-                        label: 'ACCURACY',
-                        value: '${controller.avgAccuracy.value}',
-                        suffix: '%'),
-                    const StatData(
-                        label: 'STREAK', value: '—'),
-                  ],
-                )),
+            Obx(
+              () => StatRow(
+                stats: <StatData>[
+                  StatData(
+                    label: 'QUIZZES',
+                    value: '${controller.totalPlayed.value}',
+                  ),
+                  StatData(
+                    label: 'TOTAL PTS',
+                    value: '${controller.totalScore.value}',
+                  ),
+                  StatData(
+                    label: 'ACCURACY',
+                    value: '${controller.avgAccuracy.value}',
+                    suffix: '%',
+                  ),
+                ],
+              ),
+            ),
             AppSpacing.verticalXl,
             Obx(() {
               final Map<String, dynamic>? best = controller.bestCategory;
@@ -110,8 +122,7 @@ class ProfilePage extends GetView<ProfileController> {
                         Text(
                           '${dominant?['totalAttempts'] ?? 0} Quizzes',
                           style: AppTextStyles.bodySmall(
-                            color:
-                                AppColors.textMuted.withValues(alpha: 0.8),
+                            color: AppColors.textMuted.withValues(alpha: 0.8),
                           ),
                         ),
                       ],
@@ -146,29 +157,56 @@ class ProfilePage extends GetView<ProfileController> {
           .categoryScores
           .where((Map<String, dynamic> score) => score['badge'] != 'none')
           .toList();
+      final List<String> earnedBadges = controller.earnedBadges
+          .where((String badgeKey) => BadgeDefinitions.getAny(badgeKey) != null)
+          .toList();
 
-      if (badgesWithBadge.isEmpty) {
+      if (badgesWithBadge.isEmpty && earnedBadges.isEmpty) {
         return const SizedBox.shrink();
       }
 
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          const SectionHeader(
-            title: 'CATEGORY BADGES',
-            padding: EdgeInsets.only(left: 4, bottom: 14),
-          ),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: badgesWithBadge.map((Map<String, dynamic> score) {
-              return _BadgeChip(
-                emoji: score['categoryEmoji'] as String? ?? '',
-                categoryName: score['categoryName'] as String? ?? '',
-                badge: score['badge'] as String? ?? 'none',
-              );
-            }).toList(),
-          ),
+          if (earnedBadges.isNotEmpty) ...<Widget>[
+            const SectionHeader(
+              title: 'GLOBAL BADGES',
+              padding: EdgeInsets.only(left: 4, bottom: 14),
+            ),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: earnedBadges.map((String badgeKey) {
+                final Map<String, dynamic> meta = BadgeDefinitions.getAny(
+                  badgeKey,
+                )!;
+                return _EarnedBadgeChip(
+                  emoji: meta['emoji'] as String? ?? '',
+                  label: meta['label'] as String? ?? badgeKey,
+                  color: Color(meta['color'] as int? ?? 0xFFBDC3C7),
+                );
+              }).toList(),
+            ),
+          ],
+          if (earnedBadges.isNotEmpty && badgesWithBadge.isNotEmpty)
+            AppSpacing.verticalXl,
+          if (badgesWithBadge.isNotEmpty) ...<Widget>[
+            const SectionHeader(
+              title: 'CATEGORY BADGES',
+              padding: EdgeInsets.only(left: 4, bottom: 14),
+            ),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: badgesWithBadge.map((Map<String, dynamic> score) {
+                return _BadgeChip(
+                  emoji: score['categoryEmoji'] as String? ?? '',
+                  categoryName: score['categoryName'] as String? ?? '',
+                  badge: score['badge'] as String? ?? 'none',
+                );
+              }).toList(),
+            ),
+          ],
         ],
       );
     });
@@ -215,6 +253,45 @@ class ProfilePage extends GetView<ProfileController> {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _EarnedBadgeChip extends StatelessWidget {
+  const _EarnedBadgeChip({
+    required this.emoji,
+    required this.label,
+    required this.color,
+  });
+
+  final String emoji;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Text(emoji, style: const TextStyle(fontSize: 16)),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

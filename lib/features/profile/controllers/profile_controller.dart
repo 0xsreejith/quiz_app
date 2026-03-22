@@ -10,8 +10,11 @@ class ProfileController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxBool isLoadingBadges = true.obs;
   final RxInt totalPlayed = 0.obs;
+  final RxInt totalScore = 0.obs;
   final RxInt bestScore = 0.obs;
   final RxInt avgAccuracy = 0.obs;
+  final RxString globalBadge = 'unranked'.obs;
+  final RxList<String> earnedBadges = <String>[].obs;
   final RxList<Map<String, dynamic>> categoryScores =
       <Map<String, dynamic>>[].obs;
 
@@ -48,8 +51,13 @@ class ProfileController extends GetxController {
         uid,
       );
       totalPlayed.value = stats['totalPlayed'] as int? ?? 0;
+      totalScore.value = stats['totalScore'] as int? ?? 0;
       bestScore.value = stats['bestScore'] as int? ?? 0;
       avgAccuracy.value = stats['avgAccuracy'] as int? ?? 0;
+      globalBadge.value = stats['globalBadge'] as String? ?? 'unranked';
+      earnedBadges.assignAll(
+        (stats['earnedBadges'] as List<dynamic>?)?.cast<String>() ?? <String>[],
+      );
 
       final List<Map<String, dynamic>> catScores = await _firestoreService
           .getCategoryScores(uid);
