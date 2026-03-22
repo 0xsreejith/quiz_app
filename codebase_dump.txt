@@ -569,12 +569,16 @@ class FirestoreService {
         .collection('users')
         .doc(uid);
 
-    await userRef.set(<String, dynamic>{
+    final Map<String, dynamic> data = <String, dynamic>{
       'uid': uid,
       'email': email,
-      'displayName': ?displayName,
       'createdAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    };
+    if (displayName != null) {
+      data['displayName'] = displayName;
+    }
+
+    await userRef.set(data, SetOptions(merge: true));
   }
 
   Future<void> saveScore({
@@ -583,8 +587,9 @@ class FirestoreService {
     required int score,
     String? displayName,
   }) async {
-    final DocumentReference<Map<String, dynamic>> ref =
-        _firestore.collection('scores').doc(uid);
+    final DocumentReference<Map<String, dynamic>> ref = _firestore
+        .collection('scores')
+        .doc(uid);
 
     await _firestore.runTransaction((Transaction tx) async {
       final DocumentSnapshot<Map<String, dynamic>> snap = await tx.get(ref);
@@ -592,52 +597,51 @@ class FirestoreService {
           ? (snap.data()?['score'] as int? ?? 0)
           : 0;
       if (score > current) {
-        tx.set(ref, <String, dynamic>{
+        final Map<String, dynamic> data = <String, dynamic>{
           'uid': uid,
           'email': email,
-          'displayName': ?displayName,
           'score': score,
           'createdAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+        };
+        if (displayName != null) {
+          data['displayName'] = displayName;
+        }
+
+        tx.set(ref, data, SetOptions(merge: true));
       }
     });
   }
 
   Future<List<Map<String, dynamic>>> getTopScores({int limit = 10}) async {
-    final QuerySnapshot<Map<String, dynamic>> snapshot = await _firestore
-        .collection('scores')
-        .orderBy('score', descending: true)
-        .limit(limit)
-        .get();
-
-    return snapshot.docs
-        .map((QueryDocumentSnapshot<Map<String, dynamic>> doc) => doc.data())
-        .toList();
+    final List<Map<String, dynamic>> uniqueScores = await _getUniqueScores();
+    return uniqueScores.take(limit).toList();
   }
 
   /// Fetch the signed-in user's own score document directly.
   Future<Map<String, dynamic>?> getUserScoreDoc(String uid) async {
-    final DocumentSnapshot<Map<String, dynamic>> snap =
-        await _firestore.collection('scores').doc(uid).get();
-    if (!snap.exists) return null;
-    return snap.data();
+    final DocumentSnapshot<Map<String, dynamic>> snap = await _firestore
+        .collection('scores')
+        .doc(uid)
+        .get();
+    if (snap.exists) return snap.data();
+
+    final List<Map<String, dynamic>> uniqueScores = await _getUniqueScores();
+    for (final Map<String, dynamic> score in uniqueScores) {
+      if (score['uid'] == uid) {
+        return score;
+      }
+    }
+    return null;
   }
 
   /// Count users scoring strictly higher → global rank = count + 1.
   Future<int> getUserGlobalRank(String uid) async {
-    final DocumentSnapshot<Map<String, dynamic>> userSnap =
-        await _firestore.collection('scores').doc(uid).get();
-    if (!userSnap.exists) return 0;
-
-    final int userScore = userSnap.data()?['score'] as int? ?? 0;
-
-    final AggregateQuerySnapshot countSnap = await _firestore
-        .collection('scores')
-        .where('score', isGreaterThan: userScore)
-        .count()
-        .get();
-
-    return (countSnap.count ?? 0) + 1;
+    final List<Map<String, dynamic>> uniqueScores = await _getUniqueScores();
+    final int index = uniqueScores.indexWhere(
+      (Map<String, dynamic> score) => score['uid'] == uid,
+    );
+    if (index == -1) return 0;
+    return index + 1;
   }
 
   Future<void> saveCategoryScore({
@@ -711,16 +715,16 @@ class FirestoreService {
         .doc(uid)
         .collection('quizHistory')
         .add(<String, dynamic>{
-      'categoryName': categoryName,
-      'categoryEmoji': categoryEmoji,
-      'score': score,
-      'totalQuestions': totalQuestions,
-      'correctAnswers': correctAnswers,
-      'accuracy': totalQuestions == 0
-          ? 0
-          : (correctAnswers / totalQuestions * 100).round(),
-      'playedAt': FieldValue.serverTimestamp(),
-    });
+          'categoryName': categoryName,
+          'categoryEmoji': categoryEmoji,
+          'score': score,
+          'totalQuestions': totalQuestions,
+          'correctAnswers': correctAnswers,
+          'accuracy': totalQuestions == 0
+              ? 0
+              : (correctAnswers / totalQuestions * 100).round(),
+          'playedAt': FieldValue.serverTimestamp(),
+        });
 
     await _updateUserStats(
       uid: uid,
@@ -745,8 +749,10 @@ class FirestoreService {
   }
 
   Future<Map<String, dynamic>> getUserStats(String uid) async {
-    final DocumentSnapshot<Map<String, dynamic>> snap =
-        await _firestore.collection('users').doc(uid).get();
+    final DocumentSnapshot<Map<String, dynamic>> snap = await _firestore
+        .collection('users')
+        .doc(uid)
+        .get();
     if (!snap.exists) {
       return <String, dynamic>{
         'totalPlayed': 0,
@@ -767,29 +773,58 @@ class FirestoreService {
     required int newScore,
     required int newAccuracy,
   }) async {
-    final DocumentReference<Map<String, dynamic>> ref =
-        _firestore.collection('users').doc(uid);
+    final DocumentReference<Map<String, dynamic>> ref = _firestore
+        .collection('users')
+        .doc(uid);
     await _firestore.runTransaction((Transaction tx) async {
       final DocumentSnapshot<Map<String, dynamic>> snap = await tx.get(ref);
       final Map<String, dynamic> data = snap.data() ?? <String, dynamic>{};
       final int prevPlayed = data['totalPlayed'] as int? ?? 0;
       final int prevBest = data['bestScore'] as int? ?? 0;
-      final double prevAvg =
-          (data['avgAccuracy'] as num?)?.toDouble() ?? 0;
+      final double prevAvg = (data['avgAccuracy'] as num?)?.toDouble() ?? 0;
       final int newTotal = prevPlayed + 1;
       final int newBest = newScore > prevBest ? newScore : prevBest;
-      final double newAvg =
-          ((prevAvg * prevPlayed) + newAccuracy) / newTotal;
-      tx.set(
-        ref,
-        <String, dynamic>{
-          'totalPlayed': newTotal,
-          'bestScore': newBest,
-          'avgAccuracy': newAvg.round(),
-        },
-        SetOptions(merge: true),
-      );
+      final double newAvg = ((prevAvg * prevPlayed) + newAccuracy) / newTotal;
+      tx.set(ref, <String, dynamic>{
+        'totalPlayed': newTotal,
+        'bestScore': newBest,
+        'avgAccuracy': newAvg.round(),
+      }, SetOptions(merge: true));
     });
+  }
+
+  Future<List<Map<String, dynamic>>> _getUniqueScores() async {
+    final QuerySnapshot<Map<String, dynamic>> snapshot = await _firestore
+        .collection('scores')
+        .orderBy('score', descending: true)
+        .get();
+
+    final List<Map<String, dynamic>> uniqueScores = <Map<String, dynamic>>[];
+    final Set<String> seenUsers = <String>{};
+
+    for (final QueryDocumentSnapshot<Map<String, dynamic>> doc
+        in snapshot.docs) {
+      final Map<String, dynamic> data = doc.data();
+      final String uid = (data['uid'] as String? ?? '').trim();
+      final String email = (data['email'] as String? ?? '').trim();
+      final String userKey = uid.isNotEmpty
+          ? uid
+          : email.isNotEmpty
+          ? email
+          : doc.id;
+
+      if (seenUsers.contains(userKey)) {
+        continue;
+      }
+
+      seenUsers.add(userKey);
+      uniqueScores.add(<String, dynamic>{
+        ...data,
+        'uid': uid.isNotEmpty ? uid : userKey,
+      });
+    }
+
+    return uniqueScores;
   }
 }
 
@@ -2005,7 +2040,8 @@ class SectionTitleRow extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: 4),
             child: Text(
               label,
-              style: labelStyle ??
+              style:
+                  labelStyle ??
                   const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
@@ -2019,7 +2055,8 @@ class SectionTitleRow extends StatelessWidget {
             Expanded(
               child: Text(
                 title,
-                style: titleStyle ??
+                style:
+                    titleStyle ??
                     const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w800,
@@ -3794,6 +3831,7 @@ class HomeBinding extends Bindings {
 import 'package:get/get.dart';
 import 'package:quiz_app/core/services/auth_service.dart';
 import 'package:quiz_app/core/services/firestore_service.dart';
+import 'package:quiz_app/features/app_shell/controllers/app_shell_controller.dart';
 import 'package:quiz_app/features/home/data/models/category_model.dart';
 import 'package:quiz_app/features/home/data/models/home_models.dart';
 import 'package:quiz_app/routes/app_routes.dart';
@@ -3828,10 +3866,7 @@ class HomeController extends GetxController {
     isLoading.value = true;
     errorMessage.value = '';
     try {
-      await Future.wait(<Future<void>>[
-        _loadTopPerformers(),
-        _loadUserStats(),
-      ]);
+      await Future.wait(<Future<void>>[_loadTopPerformers(), _loadUserStats()]);
     } catch (e) {
       errorMessage.value = e.toString();
     } finally {
@@ -3840,29 +3875,34 @@ class HomeController extends GetxController {
   }
 
   Future<void> _loadTopPerformers() async {
-    final List<Map<String, dynamic>> result =
-        await _firestoreService.getTopScores(limit: 3);
+    final List<Map<String, dynamic>> result = await _firestoreService
+        .getTopScores(limit: 3);
     final String uid = _authService.currentUser?.uid ?? '';
-    topPerformers.value = result.asMap().entries.map((MapEntry<int, Map<String, dynamic>> entry) {
+    topPerformers.value = result.asMap().entries.map((
+      MapEntry<int, Map<String, dynamic>> entry,
+    ) {
       final int i = entry.key;
       final Map<String, dynamic> s = entry.value;
       final String email = s['email'] as String? ?? '';
+      final String? displayName = s['displayName'] as String?;
       return TopPerformer(
         id: s['uid'] as String? ?? '$i',
-        name: email.split('@').first,
+        name: displayName != null && displayName.trim().isNotEmpty
+            ? displayName.trim()
+            : email.split('@').first,
         level: 1,
         title: i == 0
             ? 'Top Scorer'
             : i == 1
-                ? 'Runner Up'
-                : 'Top 3',
+            ? 'Runner Up'
+            : 'Top 3',
         points: s['score'] as int? ?? 0,
         avatarUrl: '',
         badge: i == 0
             ? '🏆'
             : i == 1
-                ? '🥈'
-                : '🥉',
+            ? '🥈'
+            : '🥉',
         isCurrentUser: s['uid'] == uid,
       );
     }).toList();
@@ -3871,14 +3911,28 @@ class HomeController extends GetxController {
   Future<void> _loadUserStats() async {
     final String? uid = _authService.currentUser?.uid;
     if (uid == null) return;
-    final Map<String, dynamic> stats =
-        await _firestoreService.getUserStats(uid);
+    final Map<String, dynamic> stats = await _firestoreService.getUserStats(
+      uid,
+    );
     userBestScore.value = stats['bestScore'] as int? ?? 0;
     userTotalPlayed.value = stats['totalPlayed'] as int? ?? 0;
   }
 
   void navigateToProfile(String userId) {
-    Get.toNamed('/profile');
+    final String? currentUserId = _authService.currentUser?.uid;
+    if (currentUserId == null || userId != currentUserId) {
+      return;
+    }
+
+    if (Get.isRegistered<AppShellController>()) {
+      Get.find<AppShellController>().changeTab(4);
+    }
+  }
+
+  void navigateToLeaderboard() {
+    if (Get.isRegistered<AppShellController>()) {
+      Get.find<AppShellController>().changeTab(2);
+    }
   }
 
   void navigateToCategory(CategoryModel category) {
@@ -4213,8 +4267,11 @@ class HomePage extends GetView<HomeController> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.error_outline,
-                      color: AppColors.textMuted, size: 48),
+                  const Icon(
+                    Icons.error_outline,
+                    color: AppColors.textMuted,
+                    size: 48,
+                  ),
                   const SizedBox(height: 16),
                   const Text(
                     'Unable to load data',
@@ -4284,10 +4341,7 @@ class HomePage extends GetView<HomeController> {
                 SizedBox(height: 4),
                 Text(
                   'Test your knowledge across categories',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textMuted,
-                  ),
+                  style: TextStyle(fontSize: 14, color: AppColors.textMuted),
                 ),
               ],
             ),
@@ -4373,32 +4427,36 @@ class HomePage extends GetView<HomeController> {
           const SizedBox(width: 12),
           _StatChip(
             icon: Icons.emoji_events_outlined,
-            valueWidget: Obx(() => Text(
-                  controller.userBestScore.value > 0
-                      ? '${controller.userBestScore.value}'
-                      : '—',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFFD4AF37),
-                  ),
-                )),
+            valueWidget: Obx(
+              () => Text(
+                controller.userBestScore.value > 0
+                    ? '${controller.userBestScore.value}'
+                    : '—',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFFD4AF37),
+                ),
+              ),
+            ),
             label: 'Top Score',
             color: const Color(0xFFD4AF37),
           ),
           const SizedBox(width: 12),
           _StatChip(
             icon: Icons.play_circle_outline,
-            valueWidget: Obx(() => Text(
-                  controller.userTotalPlayed.value > 0
-                      ? '${controller.userTotalPlayed.value}'
-                      : '—',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.accentGreen,
-                  ),
-                )),
+            valueWidget: Obx(
+              () => Text(
+                controller.userTotalPlayed.value > 0
+                    ? '${controller.userTotalPlayed.value}'
+                    : '—',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.accentGreen,
+                ),
+              ),
+            ),
             label: 'Played',
             color: AppColors.accentGreen,
           ),
@@ -4416,8 +4474,9 @@ class HomePage extends GetView<HomeController> {
       child: Obx(() {
         final List<CategoryModel> categories = controller.filteredCategories;
         final bool isSearching = controller.searchQuery.value.trim().isNotEmpty;
-        final int itemCount =
-            isSearching ? categories.length : (categories.length > 6 ? 6 : categories.length);
+        final int itemCount = isSearching
+            ? categories.length
+            : (categories.length > 6 ? 6 : categories.length);
 
         return Column(
           children: <Widget>[
@@ -4506,7 +4565,7 @@ class HomePage extends GetView<HomeController> {
                   ),
                 ),
                 GestureDetector(
-                  onTap: () {},
+                  onTap: controller.navigateToLeaderboard,
                   child: const Text(
                     'See all',
                     style: TextStyle(
@@ -5988,10 +6047,12 @@ class ProfileController extends GetxController {
 
   Map<String, dynamic>? get dominantCategory {
     if (categoryScores.isEmpty) return null;
-    return categoryScores.reduce((Map<String, dynamic> a, Map<String, dynamic> b) =>
-        (a['totalAttempts'] as int? ?? 0) > (b['totalAttempts'] as int? ?? 0)
-            ? a
-            : b);
+    return categoryScores.reduce(
+      (Map<String, dynamic> a, Map<String, dynamic> b) =>
+          (a['totalAttempts'] as int? ?? 0) > (b['totalAttempts'] as int? ?? 0)
+          ? a
+          : b,
+    );
   }
 
   @override
@@ -6007,14 +6068,15 @@ class ProfileController extends GetxController {
       final String? uid = _authService.currentUser?.uid;
       if (uid == null) return;
 
-      final Map<String, dynamic> stats =
-          await _firestoreService.getUserStats(uid);
+      final Map<String, dynamic> stats = await _firestoreService.getUserStats(
+        uid,
+      );
       totalPlayed.value = stats['totalPlayed'] as int? ?? 0;
       bestScore.value = stats['bestScore'] as int? ?? 0;
       avgAccuracy.value = stats['avgAccuracy'] as int? ?? 0;
 
-      final List<Map<String, dynamic>> catScores =
-          await _firestoreService.getCategoryScores(uid);
+      final List<Map<String, dynamic>> catScores = await _firestoreService
+          .getCategoryScores(uid);
       categoryScores.assignAll(catScores);
     } catch (e) {
       debugPrint('Error loading profile data: $e');
@@ -6023,6 +6085,8 @@ class ProfileController extends GetxController {
       isLoadingBadges.value = false;
     }
   }
+
+  Future<void> refreshAfterQuiz() => loadProfileData();
 }
 
 ═══ lib/features/profile/views/profile_page.dart ═══
@@ -6442,6 +6506,11 @@ class QuizController extends GetxController {
     final AuthService authService = Get.find<AuthService>();
     final FirestoreService firestoreService = Get.find<FirestoreService>();
     final User? user = authService.currentUser;
+    final int finalScore = score.value;
+    final int totalQuestionCount = questions.length;
+    final int finalCorrectAnswers = correctAnswers;
+    final String finalCategoryName = categoryName.value ?? '';
+    final String finalCategoryEmoji = categoryEmoji.value ?? '';
 
     if (user != null) {
       try {
@@ -6449,8 +6518,9 @@ class QuizController extends GetxController {
         await firestoreService.saveScore(
           uid: user.uid,
           email: user.email ?? 'Unknown',
-          score: score.value,
-          displayName: user.displayName ?? (user.email?.split('@').first ?? 'Unknown'),
+          score: finalScore,
+          displayName:
+              user.displayName ?? (user.email?.split('@').first ?? 'Unknown'),
         );
 
         // Save to category scores
@@ -6458,33 +6528,36 @@ class QuizController extends GetxController {
           await firestoreService.saveCategoryScore(
             uid: user.uid,
             categoryId: categoryId!,
-            categoryName: categoryName.value ?? '',
-            categoryEmoji: categoryEmoji.value ?? '',
-            score: score.value,
-            totalQuestions: questions.length,
+            categoryName: finalCategoryName,
+            categoryEmoji: finalCategoryEmoji,
+            score: finalScore,
+            totalQuestions: totalQuestionCount,
           );
         }
 
         // Save to quiz history
         await firestoreService.saveQuizHistory(
           uid: user.uid,
-          categoryName: categoryName.value ?? 'General',
-          categoryEmoji: categoryEmoji.value ?? '📝',
-          score: score.value,
-          totalQuestions: questions.length,
-          correctAnswers: correctAnswers,
+          categoryName: finalCategoryName.isNotEmpty
+              ? finalCategoryName
+              : 'General',
+          categoryEmoji: finalCategoryEmoji.isNotEmpty
+              ? finalCategoryEmoji
+              : '📝',
+          score: finalScore,
+          totalQuestions: totalQuestionCount,
+          correctAnswers: finalCorrectAnswers,
         );
       } catch (e) {
         debugPrint('Error saving quiz results: $e');
       }
     }
 
-    Get.offNamed(AppRoutes.result, arguments: {
-      'score': score.value,
-      'totalQuestions': questions.length,
-    });
+    Get.offNamed(
+      AppRoutes.result,
+      arguments: {'score': finalScore, 'totalQuestions': totalQuestionCount},
+    );
   }
-
 
   void goHome() {
     Get.offAllNamed(AppRoutes.appShell);
@@ -6564,10 +6637,7 @@ class QuizApiService {
 
     final List<dynamic> results = data['results'] as List<dynamic>;
     return results
-        .map(
-          (dynamic e) =>
-              QuestionModel.fromJson(e as Map<String, dynamic>),
-        )
+        .map((dynamic e) => QuestionModel.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 }
@@ -6718,8 +6788,12 @@ import 'package:get/get.dart';
 import 'package:quiz_app/core/constants/app_colors.dart';
 import 'package:quiz_app/core/constants/app_spacing.dart';
 import 'package:quiz_app/core/widgets/common_app_bar.dart';
+import 'package:quiz_app/features/history/controllers/history_controller.dart';
+import 'package:quiz_app/features/home/controllers/home_controller.dart';
+import 'package:quiz_app/features/profile/controllers/profile_controller.dart';
 import 'package:quiz_app/features/quiz/widgets/correct_answers_card.dart';
 import 'package:quiz_app/features/quiz/widgets/final_score_card.dart';
+import 'package:quiz_app/features/rank/controllers/leaderboard_controller.dart';
 import 'package:quiz_app/routes/app_routes.dart';
 
 class ResultPage extends StatelessWidget {
@@ -6727,7 +6801,8 @@ class ResultPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Map<String, dynamic> args = Get.arguments as Map<String, dynamic>? ?? {};
+    final Map<String, dynamic> args =
+        Get.arguments as Map<String, dynamic>? ?? {};
     final int scoreValue = args['score'] as int? ?? 0;
     final int totalQuestions = args['totalQuestions'] as int? ?? 0;
     final RxInt score = scoreValue.obs;
@@ -6779,19 +6854,19 @@ class ResultPage extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: AppSpacing.xxxl),
-                    
+
                     FinalScoreCard(
                       score: score,
                       totalQuestions: totalQuestions,
                     ),
                     const SizedBox(height: AppSpacing.lg),
-                    
+
                     CorrectAnswersCard(
                       score: score,
                       totalQuestions: totalQuestions,
                     ),
                     const SizedBox(height: 48),
-                    
+
                     _buildActionButtons(),
                   ],
                 ),
@@ -6807,7 +6882,11 @@ class ResultPage extends StatelessWidget {
     return Column(
       children: [
         ElevatedButton(
-          onPressed: () => Get.offAllNamed(AppRoutes.appShell),
+          onPressed: () async {
+            Get.offAllNamed(AppRoutes.appShell);
+            await Future<void>.delayed(Duration.zero);
+            await _refreshShellData();
+          },
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
             padding: const EdgeInsets.symmetric(vertical: 18),
@@ -6835,6 +6914,31 @@ class ResultPage extends StatelessWidget {
         const SizedBox(height: AppSpacing.lg),
       ],
     );
+  }
+
+  Future<void> _refreshShellData() async {
+    await _safeRefresh<HomeController>((HomeController controller) {
+      return controller.loadData();
+    });
+    await _safeRefresh<HistoryController>((HistoryController controller) {
+      return controller.refreshHistory();
+    });
+    await _safeRefresh<ProfileController>((ProfileController controller) {
+      return controller.refreshAfterQuiz();
+    });
+    await _safeRefresh<LeaderboardController>((
+      LeaderboardController controller,
+    ) {
+      return controller.fetchLeaderboard();
+    });
+  }
+
+  Future<void> _safeRefresh<T>(
+    Future<void> Function(T controller) action,
+  ) async {
+    try {
+      await action(Get.find<T>());
+    } catch (_) {}
   }
 }
 

@@ -4,6 +4,8 @@ class FirestoreService {
   FirestoreService({FirebaseFirestore? firestore})
     : _firestore = firestore ?? FirebaseFirestore.instance;
 
+  static const int _scoreQueryLimit = 500;
+
   final FirebaseFirestore _firestore;
 
   Future<void> createUserDocument({
@@ -47,7 +49,7 @@ class FirestoreService {
           'uid': uid,
           'email': email,
           'score': score,
-          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
         };
         if (displayName != null) {
           data['displayName'] = displayName;
@@ -243,6 +245,7 @@ class FirestoreService {
     final QuerySnapshot<Map<String, dynamic>> snapshot = await _firestore
         .collection('scores')
         .orderBy('score', descending: true)
+        .limit(_scoreQueryLimit)
         .get();
 
     final List<Map<String, dynamic>> uniqueScores = <Map<String, dynamic>>[];
