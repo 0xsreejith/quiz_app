@@ -6,7 +6,7 @@ import 'package:quiz_app/features/home/data/models/category_model.dart';
 import 'package:quiz_app/features/home/data/models/home_models.dart';
 import 'package:quiz_app/routes/app_routes.dart';
 
-class HomeController extends GetxController {
+class HomeController extends FullLifeCycleController with FullLifeCycleMixin {
   final FirestoreService _firestoreService = Get.find<FirestoreService>();
   final AuthService _authService = Get.find<AuthService>();
 
@@ -43,6 +43,33 @@ class HomeController extends GetxController {
       isLoading.value = false;
     }
   }
+
+  @override
+  void onResumed() {
+    _loadUserStats().catchError((_) {});
+    _loadTopPerformers().catchError((_) {});
+  }
+
+  Future<void> refreshAfterQuiz() async {
+    try {
+      await Future.wait<void>(<Future<void>>[
+        _loadUserStats(),
+        _loadTopPerformers(),
+      ]);
+    } catch (_) {}
+  }
+
+  @override
+  void onDetached() {}
+
+  @override
+  void onInactive() {}
+
+  @override
+  void onPaused() {}
+
+  @override
+  void onHidden() {}
 
   Future<void> _loadTopPerformers() async {
     final List<Map<String, dynamic>> result = await _firestoreService

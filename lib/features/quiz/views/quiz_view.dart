@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:quiz_app/core/constants/app_colors.dart';
 import 'package:quiz_app/core/constants/app_spacing.dart';
@@ -97,14 +96,11 @@ class QuizView extends GetView<QuizController> {
                                 isSelected:
                                     controller.selectedAnswer.value ==
                                     optionStr,
-                                isCorrect: optionStr == question.correctAnswer,
+                                isCorrect:
+                                    controller.hasAnswered.value &&
+                                    question.isCorrectOption(optionStr),
                                 hasAnswered: controller.hasAnswered.value,
-                                onTap: () {
-                                  controller.selectAnswer(optionStr);
-                                  if (optionStr != question.correctAnswer) {
-                                    HapticFeedback.vibrate();
-                                  }
-                                },
+                                onTap: () => controller.selectAnswer(optionStr),
                               ),
                             );
                           }),

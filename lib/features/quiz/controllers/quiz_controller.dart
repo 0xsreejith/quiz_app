@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:quiz_app/core/services/auth_service.dart';
 import 'package:quiz_app/core/services/firestore_service.dart';
@@ -20,6 +21,8 @@ class QuizController extends GetxController {
 
   final RxInt timeLeft = questionTimeSeconds.obs;
   Timer? _timer;
+  bool _isFinishing = false;
+  bool _nextScheduled = false;
 
   QuizController();
 
@@ -54,6 +57,9 @@ class QuizController extends GetxController {
   }
 
   Future<void> loadQuestions() async {
+    _timer?.cancel();
+    _isFinishing = false;
+    _nextScheduled = false;
     isLoading.value = true;
     errorMessage.value = null;
     try {
@@ -61,6 +67,10 @@ class QuizController extends GetxController {
         categoryId: categoryId,
       );
       questions.assignAll(result);
+      currentIndex.value = 0;
+      score.value = 0;
+      selectedAnswer.value = null;
+      hasAnswered.value = false;
       _startTimer();
     } on Exception catch (e) {
       errorMessage.value = e.toString();
@@ -71,6 +81,7 @@ class QuizController extends GetxController {
 
   void _startTimer() {
     _timer?.cancel();
+    _nextScheduled = false;
     timeLeft.value = questionTimeSeconds;
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (timeLeft.value > 0) {
@@ -81,9 +92,7 @@ class QuizController extends GetxController {
           hasAnswered.value = true;
           selectedAnswer.value = null;
         }
-        Future.delayed(const Duration(seconds: 1), () {
-          if (!isClosed) nextQuestion();
-        });
+        _scheduleNextQuestion();
       }
     });
   }
@@ -93,15 +102,27 @@ class QuizController extends GetxController {
     _timer?.cancel();
     selectedAnswer.value = answer;
     hasAnswered.value = true;
-    if (answer == currentQuestion.correctAnswer) {
+    if (currentQuestion.checkAnswer(answer)) {
       score.value++;
+    } else {
+      HapticFeedback.vibrate();
     }
+    _scheduleNextQuestion();
+  }
+
+  void _scheduleNextQuestion() {
+    if (_nextScheduled) return;
+    _nextScheduled = true;
     Future.delayed(const Duration(milliseconds: 1500), () {
-      if (!isClosed) nextQuestion();
+      if (!isClosed) {
+        _nextScheduled = false;
+        nextQuestion();
+      }
     });
   }
 
   void nextQuestion() {
+    if (!hasAnswered.value) return;
     if (isLastQuestion) {
       finishQuiz();
     } else {
@@ -113,6 +134,8 @@ class QuizController extends GetxController {
   }
 
   Future<void> finishQuiz() async {
+    if (_isFinishing) return;
+    _isFinishing = true;
     _timer?.cancel();
     final AuthService authService = Get.find<AuthService>();
     final FirestoreService firestoreService = Get.find<FirestoreService>();

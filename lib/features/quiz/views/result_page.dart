@@ -98,9 +98,11 @@ class ResultPage extends StatelessWidget {
       children: [
         ElevatedButton(
           onPressed: () async {
-            Get.offAllNamed(AppRoutes.appShell);
-            await Future<void>.delayed(Duration.zero);
+            if (Get.isRegistered<HomeController>()) {
+              await Get.find<HomeController>().refreshAfterQuiz();
+            }
             await _refreshShellData();
+            Get.offAllNamed(AppRoutes.appShell);
           },
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
@@ -132,9 +134,6 @@ class ResultPage extends StatelessWidget {
   }
 
   Future<void> _refreshShellData() async {
-    await _safeRefresh<HomeController>((HomeController controller) {
-      return controller.loadData();
-    });
     await _safeRefresh<HistoryController>((HistoryController controller) {
       return controller.refreshHistory();
     });

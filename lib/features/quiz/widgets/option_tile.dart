@@ -51,13 +51,6 @@ class _OptionTileState extends State<OptionTile> {
     return AppColors.textDark;
   }
 
-  Color _getSubtitleColor() {
-    if (widget.isSelected || (widget.hasAnswered && widget.isCorrect)) {
-      return AppColors.white.withValues(alpha: 0.8);
-    }
-    return AppColors.textMuted;
-  }
-
   IconData? _getTrailingIcon() {
     if (!widget.hasAnswered) {
       return widget.isSelected ? Icons.check_circle : null;
@@ -69,15 +62,22 @@ class _OptionTileState extends State<OptionTile> {
 
   @override
   Widget build(BuildContext context) {
-    final bool isFilled = widget.isSelected ||
+    final bool isFilled =
+        widget.isSelected ||
         (widget.hasAnswered && widget.isCorrect) ||
         (widget.hasAnswered && widget.isSelected && !widget.isCorrect);
     final Color textColor = _getTextColor();
 
     return GestureDetector(
-      onTapDown: widget.hasAnswered ? null : (_) => setState(() => _isPressed = true),
-      onTapUp: widget.hasAnswered ? null : (_) => setState(() => _isPressed = false),
-      onTapCancel: widget.hasAnswered ? null : () => setState(() => _isPressed = false),
+      onTapDown: widget.hasAnswered
+          ? null
+          : (_) => setState(() => _isPressed = true),
+      onTapUp: widget.hasAnswered
+          ? null
+          : (_) => setState(() => _isPressed = false),
+      onTapCancel: widget.hasAnswered
+          ? null
+          : () => setState(() => _isPressed = false),
       onTap: widget.hasAnswered ? null : widget.onTap,
       child: AnimatedScale(
         scale: _isPressed ? 0.96 : 1.0,
@@ -118,7 +118,9 @@ class _OptionTileState extends State<OptionTile> {
                   color: isFilled ? Colors.transparent : AppColors.white,
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(
-                    color: isFilled ? AppColors.white.withValues(alpha: 0.5) : Colors.grey.shade300,
+                    color: isFilled
+                        ? AppColors.white.withValues(alpha: 0.5)
+                        : Colors.grey.shade300,
                   ),
                 ),
                 child: Text(
@@ -131,7 +133,7 @@ class _OptionTileState extends State<OptionTile> {
                 ),
               ),
               const SizedBox(width: 16),
-              
+
               // Option Text
               Expanded(
                 child: Column(
@@ -146,22 +148,10 @@ class _OptionTileState extends State<OptionTile> {
                         color: textColor,
                       ),
                     ),
-                    if (widget.isSelected && !widget.hasAnswered) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        'SELECTED ANSWER',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 1.2,
-                          color: _getSubtitleColor(),
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ),
-              
+
               // Trailing Icon
               if (_getTrailingIcon() != null)
                 Padding(

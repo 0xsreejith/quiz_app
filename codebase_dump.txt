@@ -558,6 +558,8 @@ class FirestoreService {
   FirestoreService({FirebaseFirestore? firestore})
     : _firestore = firestore ?? FirebaseFirestore.instance;
 
+  static const int _scoreQueryLimit = 500;
+
   final FirebaseFirestore _firestore;
 
   Future<void> createUserDocument({
@@ -601,7 +603,7 @@ class FirestoreService {
           'uid': uid,
           'email': email,
           'score': score,
-          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
         };
         if (displayName != null) {
           data['displayName'] = displayName;
@@ -797,6 +799,7 @@ class FirestoreService {
     final QuerySnapshot<Map<String, dynamic>> snapshot = await _firestore
         .collection('scores')
         .orderBy('score', descending: true)
+        .limit(_scoreQueryLimit)
         .get();
 
     final List<Map<String, dynamic>> uniqueScores = <Map<String, dynamic>>[];
@@ -2006,8 +2009,6 @@ class SectionHeader extends StatelessWidget {
 ═══ lib/core/widgets/section_title_row.dart ═══
 import 'package:flutter/material.dart';
 
-/// Row with a section label on the left and an optional trailing widget
-/// (e.g. page indicators, badge) on the right.
 class SectionTitleRow extends StatelessWidget {
   const SectionTitleRow({
     super.key,
@@ -2018,23 +2019,17 @@ class SectionTitleRow extends StatelessWidget {
     this.trailing,
   });
 
-  /// Small all-caps label above the title (e.g. "RECOMMENDED FOR YOU").
   final String label;
-
-  /// Bold section title (e.g. "Featured Quizzes").
   final String title;
-
   final TextStyle? labelStyle;
   final TextStyle? titleStyle;
-
-  /// Optional widget shown at trailing side of the title row.
   final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
+      children: <Widget>[
         if (label.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(bottom: 4),
@@ -2051,7 +2046,7 @@ class SectionTitleRow extends StatelessWidget {
             ),
           ),
         Row(
-          children: [
+          children: <Widget>[
             Expanded(
               child: Text(
                 title,
@@ -4148,16 +4143,15 @@ class TopPerformer {
   }
 
   String get formattedPoints {
-    return '${points.toString().replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-      (Match m) => '${m[1]},',
-    )} pts';
+    return '${points.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')} pts';
   }
 
-  String get displayName {
-    if (isCurrentUser) return '$name (You)';
-    return name;
-  }
+  /// Clean leaderboard handle — never includes "(You)".
+  String get displayName => name;
+
+  /// Use ONLY in the Home "Top Performers" list to identify the current user.
+  /// Do NOT use in leaderboard rank lists or rank cards.
+  String get homeDisplayName => isCurrentUser ? '$name (You)' : name;
 }
 
 class RecentActivity {
@@ -4192,11 +4186,11 @@ class RecentActivity {
   }
 
   String get formattedAccuracy => '$accuracy% ACCURACY';
-  
+
   String get timeAgo {
     final now = DateTime.now();
     final difference = now.difference(completedAt);
-    
+
     if (difference.inHours < 1) {
       final minutes = difference.inMinutes;
       return minutes <= 1 ? 'JUST NOW' : '$minutes MINUTES AGO';
@@ -5244,7 +5238,7 @@ class TopPerformerItem extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(
-                    performer.displayName,
+                    performer.homeDisplayName,
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
@@ -5256,10 +5250,7 @@ class TopPerformerItem extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     'Level ${performer.level} · ${performer.title}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textMuted,
-                    ),
+                    style: TextStyle(fontSize: 12, color: AppColors.textMuted),
                   ),
                 ],
               ),
@@ -6609,33 +6600,58 @@ import 'package:quiz_app/features/quiz/data/models/question_model.dart';
 
 class QuizApiService {
   static const String _baseUrl = 'https://opentdb.com/api.php';
+  static const Duration _timeout = Duration(seconds: 10);
 
   Future<List<QuestionModel>> fetchQuestions({
     int amount = 10,
     int? categoryId,
     String? difficulty,
   }) async {
-    final Map<String, dynamic> params = <String, dynamic>{
+    final Map<String, String> params = <String, String>{
       'amount': amount.toString(),
       'type': 'multiple',
-      'category': ?categoryId?.toString(),
-      'difficulty': ?difficulty,
     };
+    if (categoryId != null) params['category'] = categoryId.toString();
+    if (difficulty != null) params['difficulty'] = difficulty;
+
     final Uri url = Uri.parse(_baseUrl).replace(queryParameters: params);
-    final http.Response response = await http.get(url);
+    final http.Response response = await http
+        .get(url)
+        .timeout(
+          _timeout,
+          onTimeout: () => throw Exception(
+            'Request timed out. Check your internet connection.',
+          ),
+        );
 
     if (response.statusCode != 200) {
-      throw Exception('Failed to load questions (${response.statusCode})');
+      throw Exception(
+        'Failed to load questions (HTTP ${response.statusCode}).',
+      );
     }
 
-    final Map<String, dynamic> data =
+    final Map<String, dynamic> body =
         json.decode(response.body) as Map<String, dynamic>;
-
-    if (data['response_code'] != 0) {
-      throw Exception('API returned error code: ${data['response_code']}');
+    final int responseCode = body['response_code'] as int? ?? -1;
+    switch (responseCode) {
+      case 0:
+        break;
+      case 1:
+        throw Exception(
+          'Not enough questions in this category. Try a different one.',
+        );
+      case 5:
+        throw Exception(
+          'Too many requests. Please wait a moment and try again.',
+        );
+      default:
+        throw Exception('API error (code $responseCode). Please try again.');
     }
 
-    final List<dynamic> results = data['results'] as List<dynamic>;
+    final List<dynamic> results = body['results'] as List<dynamic>;
+    if (results.isEmpty) {
+      throw Exception('No questions returned. Try a different category.');
+    }
     return results
         .map((dynamic e) => QuestionModel.fromJson(e as Map<String, dynamic>))
         .toList();
@@ -6659,78 +6675,89 @@ class QuizView extends GetView<QuizController> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
-      appBar: CommonAppBar(
-        title: 'QuizApp',
-        trailingLabel: 'QUIT QUIZ',
-        onTrailingTap: Get.back,
-        isRedTrailing: true,
-      ),
-      body: SafeArea(
-        child: Obx(() {
-          if (controller.isLoading.value) {
-            return const Center(child: CircularProgressIndicator());
-          }
+    return PopScope<void>(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, void result) async {
+        if (didPop) return;
+        await _showExitConfirmationDialog(context);
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF9FAFB),
+        appBar: CommonAppBar(
+          title: 'QuizApp',
+          trailingLabel: 'QUIT QUIZ',
+          onTrailingTap: () => _showExitConfirmationDialog(context),
+          isRedTrailing: true,
+        ),
+        body: SafeArea(
+          child: Obx(() {
+            if (controller.isLoading.value) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-          if (controller.errorMessage.value != null) {
-            return _buildErrorState();
-          }
+            if (controller.errorMessage.value != null) {
+              return _buildErrorState();
+            }
 
-          if (controller.questions.isEmpty) {
-            return const Center(child: Text('No questions available.'));
-          }
+            if (controller.questions.isEmpty) {
+              return const Center(child: Text('No questions available.'));
+            }
 
-          final question = controller.currentQuestion;
+            final question = controller.currentQuestion;
 
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: AppSpacing.cardPaddingLarge,
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 300),
-                    transitionBuilder: (Widget child, Animation<double> animation) {
-                      return FadeTransition(
-                        opacity: animation,
-                        child: SlideTransition(
-                          position: Tween<Offset>(
-                            begin: const Offset(0.05, 0),
-                            end: Offset.zero,
-                          ).animate(animation),
-                          child: child,
-                        ),
-                      );
-                    },
-                    child: Column(
-                      key: ValueKey<int>(controller.currentIndex.value),
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        QuizProgressHeader(controller: controller),
-                        const SizedBox(height: 40),
-                        Text(
-                          question.question,
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textDarkest,
-                            height: 1.3,
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: AppSpacing.cardPaddingLarge,
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      transitionBuilder:
+                          (Widget child, Animation<double> animation) {
+                            return FadeTransition(
+                              opacity: animation,
+                              child: SlideTransition(
+                                position: Tween<Offset>(
+                                  begin: const Offset(0.05, 0),
+                                  end: Offset.zero,
+                                ).animate(animation),
+                                child: child,
+                              ),
+                            );
+                          },
+                      child: Column(
+                        key: ValueKey<int>(controller.currentIndex.value),
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          QuizProgressHeader(controller: controller),
+                          const SizedBox(height: 40),
+                          Text(
+                            question.question,
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textDarkest,
+                              height: 1.3,
+                            ),
                           ),
-                        ),
-
-                        const SizedBox(height: 40),
-                        ...question.options.asMap().entries.map(
-                          (entry) {
+                          const SizedBox(height: 40),
+                          ...question.options.asMap().entries.map((entry) {
                             final int index = entry.key;
                             final String optionStr = entry.value;
-                            final String letter = String.fromCharCode(65 + index); // A, B, C, D
+                            final String letter = String.fromCharCode(
+                              65 + index,
+                            );
                             return Padding(
-                              padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+                              padding: const EdgeInsets.only(
+                                bottom: AppSpacing.lg,
+                              ),
                               child: OptionTile(
                                 letter: letter,
                                 option: optionStr,
-                                isSelected: controller.selectedAnswer.value == optionStr,
+                                isSelected:
+                                    controller.selectedAnswer.value ==
+                                    optionStr,
                                 isCorrect: optionStr == question.correctAnswer,
                                 hasAnswered: controller.hasAnswered.value,
                                 onTap: () {
@@ -6741,17 +6768,17 @@ class QuizView extends GetView<QuizController> {
                                 },
                               ),
                             );
-                          },
-                        ),
-                      ],
+                          }),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-              QuizBottomBar(controller: controller),
-            ],
-          );
-        }),
+                QuizBottomBar(controller: controller),
+              ],
+            );
+          }),
+        ),
       ),
     );
   }
@@ -6763,22 +6790,87 @@ class QuizView extends GetView<QuizController> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline, size: 48, color: Colors.red),
+            const Icon(
+              Icons.wifi_off_rounded,
+              size: 56,
+              color: AppColors.textMuted,
+            ),
             const SizedBox(height: AppSpacing.lg),
+            const Text(
+              'Unable to load quiz questions',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textDarkest,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
             Text(
               controller.errorMessage.value!,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 16),
+              style: const TextStyle(
+                fontSize: 15,
+                color: AppColors.textMuted,
+                height: 1.5,
+              ),
             ),
-            const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.xl),
             ElevatedButton(
               onPressed: controller.loadQuestions,
-              child: const Text('Retry'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.xl,
+                  vertical: 14,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                elevation: 0,
+              ),
+              child: const Text('Try Again'),
             ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _showExitConfirmationDialog(BuildContext context) async {
+    if (Get.isDialogOpen ?? false) return;
+
+    final bool shouldQuit =
+        await showDialog<bool>(
+          context: context,
+          builder: (BuildContext dialogContext) {
+            return AlertDialog(
+              title: const Text('Quit quiz?'),
+              content: const Text(
+                'Your current progress will be lost if you leave this quiz now.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: const Text('Stay'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(true),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.red.shade700,
+                  ),
+                  child: const Text('Quit'),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+
+    if (shouldQuit) {
+      controller.goHome();
+    }
   }
 }
 
