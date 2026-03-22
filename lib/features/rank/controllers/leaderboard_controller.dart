@@ -18,13 +18,16 @@ class LeaderboardController extends GetxController {
   final RxInt userGlobalRank = 0.obs;
   final RxInt totalRankedUsers = 0.obs;
 
+  int _loadGen = 0;
+
   @override
   void onInit() {
     super.onInit();
     fetchLeaderboard();
   }
 
-  Future<void> fetchLeaderboard() async {
+  Future<void> fetchLeaderboard({bool fromServer = false}) async {
+    final int gen = ++_loadGen;
     isLoading.value = true;
     errorMessage.value = null;
     try {
@@ -32,26 +35,38 @@ class LeaderboardController extends GetxController {
 
       if (uid != null) {
         final Map<String, dynamic> data = await _firestoreService
-            .getLeaderboardData(uid: uid, displayLimit: 50);
+            .getLeaderboardData(
+              uid: uid,
+              displayLimit: 50,
+              fromServer: fromServer,
+            );
 
+        if (gen != _loadGen) return;
         scores.assignAll(data['topScores'] as List<Map<String, dynamic>>);
         userScoreDoc.value = data['userScoreDoc'] as Map<String, dynamic>?;
         userGlobalRank.value = data['userRank'] as int;
         totalRankedUsers.value = data['totalRanked'] as int;
       } else {
         final List<Map<String, dynamic>> result = await _firestoreService
-            .getTopScores(limit: 50);
+            .getTopScores(limit: 50, fromServer: fromServer);
+        if (gen != _loadGen) return;
         scores.assignAll(result);
         userScoreDoc.value = null;
         userGlobalRank.value = 0;
         totalRankedUsers.value = result.length;
       }
     } on FirebaseException catch (error) {
-      errorMessage.value = _buildErrorMessage(error);
+      if (gen == _loadGen) {
+        errorMessage.value = _buildErrorMessage(error);
+      }
     } catch (_) {
-      errorMessage.value = 'Unable to load leaderboard data right now.';
+      if (gen == _loadGen) {
+        errorMessage.value = 'Unable to load leaderboard data right now.';
+      }
     } finally {
-      isLoading.value = false;
+      if (gen == _loadGen) {
+        isLoading.value = false;
+      }
     }
   }
 

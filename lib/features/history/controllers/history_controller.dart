@@ -14,6 +14,8 @@ class HistoryController extends GetxController {
   final RxInt totalPlayedStat = 0.obs;
   final RxInt avgAccuracyStat = 0.obs;
 
+  int _loadGen = 0;
+
   int get bestScore => quizHistory.isEmpty
       ? 0
       : quizHistory
@@ -26,35 +28,43 @@ class HistoryController extends GetxController {
     loadHistory();
   }
 
-  Future<void> loadHistory() async {
+  Future<void> loadHistory({bool fromServer = false}) async {
+    final int gen = ++_loadGen;
     isLoading.value = true;
     errorMessage.value = '';
     try {
       final String? uid = _authService.currentUser?.uid;
       if (uid == null) {
-        isLoading.value = false;
-        errorMessage.value = 'Not logged in';
+        if (gen == _loadGen) {
+          isLoading.value = false;
+          errorMessage.value = 'Not logged in';
+        }
         return;
       }
 
       final List<Object> results = await Future.wait(<Future<Object>>[
-        _firestoreService.getQuizHistory(uid),
-        _firestoreService.getUserStats(uid),
+        _firestoreService.getQuizHistory(uid, fromServer: fromServer),
+        _firestoreService.getUserStats(uid, fromServer: fromServer),
       ]);
 
+      if (gen != _loadGen) return;
       quizHistory.assignAll(results[0] as List<Map<String, dynamic>>);
 
       final Map<String, dynamic> stats = results[1] as Map<String, dynamic>;
       totalPlayedStat.value = (stats['totalPlayed'] as num?)?.toInt() ?? 0;
       avgAccuracyStat.value = (stats['avgAccuracy'] as num?)?.round() ?? 0;
     } catch (e) {
-      errorMessage.value = e.toString();
+      if (gen == _loadGen) {
+        errorMessage.value = e.toString();
+      }
     } finally {
-      isLoading.value = false;
+      if (gen == _loadGen) {
+        isLoading.value = false;
+      }
     }
   }
 
-  Future<void> refreshHistory() => loadHistory();
+  Future<void> refreshHistory() => loadHistory(fromServer: true);
 
   void clearHistory() {
     quizHistory.clear();
