@@ -22,72 +22,79 @@ class ResultPage extends StatelessWidget {
     final int totalQuestions = args['totalQuestions'] as int? ?? 0;
     final RxInt score = scoreValue.obs;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
-      appBar: const CommonAppBar(
-        title: 'QuizApp',
-        trailingLabel: 'SESSION END',
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.xxl,
-                  vertical: AppSpacing.xxxl,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      'PERFORMANCE SUMMARY',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary.withValues(alpha: 0.8),
-                        letterSpacing: 1.5,
+    return PopScope<void>(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, void result) async {
+        if (didPop) return;
+        await _goHome();
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF9FAFB),
+        appBar: const CommonAppBar(
+          title: 'QuizApp',
+          trailingLabel: 'SESSION END',
+        ),
+        body: SafeArea(
+          child: Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.xxl,
+                    vertical: AppSpacing.xxxl,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'PERFORMANCE SUMMARY',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary.withValues(alpha: 0.8),
+                          letterSpacing: 1.5,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    const Text(
-                      'Quiz Completed!',
-                      style: TextStyle(
-                        fontSize: 36,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textDarkest,
-                        height: 1.1,
+                      const SizedBox(height: AppSpacing.sm),
+                      const Text(
+                        'Quiz Completed!',
+                        style: TextStyle(
+                          fontSize: 36,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textDarkest,
+                          height: 1.1,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    Text(
-                      'You\'ve finished the session. Below is your performance summary for this category.',
-                      style: TextStyle(
-                        fontSize: 15,
-                        color: Colors.grey.shade600,
-                        height: 1.5,
+                      const SizedBox(height: AppSpacing.lg),
+                      Text(
+                        'You\'ve finished the session. Below is your performance summary for this category.',
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: Colors.grey.shade600,
+                          height: 1.5,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: AppSpacing.xxxl),
+                      const SizedBox(height: AppSpacing.xxxl),
 
-                    FinalScoreCard(
-                      score: score,
-                      totalQuestions: totalQuestions,
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
+                      FinalScoreCard(
+                        score: score,
+                        totalQuestions: totalQuestions,
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
 
-                    CorrectAnswersCard(
-                      score: score,
-                      totalQuestions: totalQuestions,
-                    ),
-                    const SizedBox(height: 48),
+                      CorrectAnswersCard(
+                        score: score,
+                        totalQuestions: totalQuestions,
+                      ),
+                      const SizedBox(height: 48),
 
-                    _buildActionButtons(),
-                  ],
+                      _buildActionButtons(),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -97,13 +104,7 @@ class ResultPage extends StatelessWidget {
     return Column(
       children: [
         ElevatedButton(
-          onPressed: () async {
-            if (Get.isRegistered<HomeController>()) {
-              await Get.find<HomeController>().refreshAfterQuiz();
-            }
-            await _refreshShellData();
-            Get.offAllNamed(AppRoutes.appShell);
-          },
+          onPressed: _goHome,
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
             padding: const EdgeInsets.symmetric(vertical: 18),
@@ -131,6 +132,14 @@ class ResultPage extends StatelessWidget {
         const SizedBox(height: AppSpacing.lg),
       ],
     );
+  }
+
+  Future<void> _goHome() async {
+    if (Get.isRegistered<HomeController>()) {
+      await Get.find<HomeController>().refreshAfterQuiz();
+    }
+    await _refreshShellData();
+    Get.offAllNamed(AppRoutes.appShell);
   }
 
   Future<void> _refreshShellData() async {

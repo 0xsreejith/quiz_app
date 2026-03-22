@@ -109,7 +109,7 @@ class QuizView extends GetView<QuizController> {
                     ),
                   ),
                 ),
-                QuizBottomBar(controller: controller),
+                const QuizBottomBar(),
               ],
             );
           }),
