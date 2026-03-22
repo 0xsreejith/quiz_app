@@ -50,13 +50,16 @@ class ProfileController extends GetxController {
       final Map<String, dynamic> stats = await _firestoreService.getUserStats(
         uid,
       );
-      totalPlayed.value = stats['totalPlayed'] as int? ?? 0;
-      totalScore.value = stats['totalScore'] as int? ?? 0;
-      bestScore.value = stats['bestScore'] as int? ?? 0;
-      avgAccuracy.value = stats['avgAccuracy'] as int? ?? 0;
+      totalPlayed.value = (stats['totalPlayed'] as num?)?.toInt() ?? 0;
+      totalScore.value = (stats['totalScore'] as num?)?.toInt() ?? 0;
+      bestScore.value = (stats['bestScore'] as num?)?.toInt() ?? 0;
+      avgAccuracy.value = (stats['avgAccuracy'] as num?)?.round() ?? 0;
       globalBadge.value = stats['globalBadge'] as String? ?? 'unranked';
       earnedBadges.assignAll(
-        (stats['earnedBadges'] as List<dynamic>?)?.cast<String>() ?? <String>[],
+        (stats['earnedBadges'] as List<dynamic>?)
+                ?.whereType<String>()
+                .toList() ??
+            <String>[],
       );
 
       final List<Map<String, dynamic>> catScores = await _firestoreService

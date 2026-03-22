@@ -4,6 +4,6 @@ import 'package:quiz_app/features/profile/controllers/profile_controller.dart';
 class ProfileBinding extends Bindings {
   @override
   void dependencies() {
-    Get.lazyPut<ProfileController>(ProfileController.new);
+    Get.lazyPut<ProfileController>(ProfileController.new, fenix: true);
   }
 }

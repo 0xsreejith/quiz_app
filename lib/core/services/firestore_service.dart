@@ -1,10 +1,80 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 class FirestoreService {
   FirestoreService({FirebaseFirestore? firestore})
     : _firestore = firestore ?? FirebaseFirestore.instance;
 
+  static const int _scoreQueryLimit = 500;
+
   final FirebaseFirestore _firestore;
+
+  Future<int> migrateScoresToTotalScore() async {
+    final DocumentReference<Map<String, dynamic>> migrationRef = _firestore
+        .collection('meta')
+        .doc('migrationV2');
+    final DocumentSnapshot<Map<String, dynamic>> migrationSnap =
+        await migrationRef.get();
+    final bool alreadyDone = migrationSnap.data()?['done'] as bool? ?? false;
+    if (alreadyDone) {
+      return 0;
+    }
+
+    final QuerySnapshot<Map<String, dynamic>> scoresSnapshot = await _firestore
+        .collection('scores')
+        .get();
+
+    WriteBatch batch = _firestore.batch();
+    int pendingWrites = 0;
+    int migratedCount = 0;
+
+    for (final QueryDocumentSnapshot<Map<String, dynamic>> doc
+        in scoresSnapshot.docs) {
+      final Map<String, dynamic> data = doc.data();
+      final bool hasLegacyScore = data.containsKey('score');
+      final bool hasTotalScore = data.containsKey('totalScore');
+      if (!hasLegacyScore || hasTotalScore) {
+        continue;
+      }
+
+      final int legacyScore = _readInt(data['score']) ?? 0;
+      final Object firstPlayedAt =
+          data['updatedAt'] ?? FieldValue.serverTimestamp();
+
+      batch.set(doc.reference, <String, dynamic>{
+        'totalScore': legacyScore,
+        'totalAttempts': 1,
+        'totalCorrect': 0,
+        'totalQuestions': 0,
+        'avgAccuracy': 0.0,
+        'avgCompletionMs': 0,
+        'firstPlayedAt': firstPlayedAt,
+        'lastUpdatedAt': firstPlayedAt,
+        'globalBadge': _calculateGlobalBadge(legacyScore),
+      }, SetOptions(merge: true));
+
+      pendingWrites++;
+      migratedCount++;
+
+      if (pendingWrites >= 400) {
+        await batch.commit();
+        batch = _firestore.batch();
+        pendingWrites = 0;
+      }
+    }
+
+    if (pendingWrites > 0) {
+      await batch.commit();
+    }
+
+    await migrationRef.set(<String, dynamic>{
+      'done': true,
+      'migratedCount': migratedCount,
+      'completedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    return migratedCount;
+  }
 
   Future<void> createUserDocument({
     required String uid,
@@ -81,6 +151,7 @@ class FirestoreService {
       final Map<String, dynamic> updateData = <String, dynamic>{
         'uid': uid,
         'email': email,
+        'score': newTotal,
         'totalScore': newTotal,
         'totalAttempts': newAttempts,
         'totalCorrect': newCorrect,
@@ -96,16 +167,14 @@ class FirestoreService {
         updateData['displayName'] = trimmedDisplayName;
       }
 
-      final Object? firstPlayedAt =
-          data['firstPlayedAt'] ?? data['updatedAt'] ?? data['lastUpdatedAt'];
-      if (firstPlayedAt != null) {
-        updateData['firstPlayedAt'] = firstPlayedAt;
-      } else {
+      if (!snap.exists) {
         updateData['firstPlayedAt'] = FieldValue.serverTimestamp();
       }
 
       tx.set(ref, updateData, SetOptions(merge: true));
     });
+
+    await _syncUserDocFromScoreDoc(uid: uid);
   }
 
   Future<List<Map<String, dynamic>>> getTopScores({int limit = 10}) async {
@@ -124,7 +193,7 @@ class FirestoreService {
 
     final List<Map<String, dynamic>> uniqueScores = await _getUniqueScores();
     for (final Map<String, dynamic> score in uniqueScores) {
-      if (score['uid'] == uid) {
+      if (score['uid'] == uid || score['docId'] == uid) {
         return score;
       }
     }
@@ -135,7 +204,8 @@ class FirestoreService {
   Future<int> getUserGlobalRank(String uid) async {
     final List<Map<String, dynamic>> uniqueScores = await _getUniqueScores();
     final int index = uniqueScores.indexWhere(
-      (Map<String, dynamic> score) => score['uid'] == uid,
+      (Map<String, dynamic> score) =>
+          score['uid'] == uid || score['docId'] == uid,
     );
     if (index == -1) return 0;
     return index + 1;
@@ -269,15 +339,6 @@ class FirestoreService {
               : (correctAnswers / totalQuestions * 100).round(),
           'playedAt': FieldValue.serverTimestamp(),
         });
-
-    await _updateUserStats(
-      uid: uid,
-      newScore: score,
-      newAccuracy: totalQuestions == 0
-          ? 0
-          : (correctAnswers / totalQuestions * 100).round(),
-      earnedScore: score,
-    );
   }
 
   Future<List<Map<String, dynamic>>> getQuizHistory(String uid) async {
@@ -294,11 +355,16 @@ class FirestoreService {
   }
 
   Future<Map<String, dynamic>> getUserStats(String uid) async {
-    final DocumentSnapshot<Map<String, dynamic>> snap = await _firestore
-        .collection('users')
-        .doc(uid)
-        .get();
-    if (!snap.exists) {
+    final List<DocumentSnapshot<Map<String, dynamic>>> snapshots =
+        await Future.wait<DocumentSnapshot<Map<String, dynamic>>>([
+          _firestore.collection('users').doc(uid).get(),
+          _firestore.collection('scores').doc(uid).get(),
+        ]);
+
+    final DocumentSnapshot<Map<String, dynamic>> userSnap = snapshots[0];
+    final DocumentSnapshot<Map<String, dynamic>> scoreSnap = snapshots[1];
+
+    if (!userSnap.exists && !scoreSnap.exists) {
       return <String, dynamic>{
         'totalPlayed': 0,
         'bestScore': 0,
@@ -309,132 +375,144 @@ class FirestoreService {
       };
     }
 
-    final Map<String, dynamic> data = snap.data()!;
-    final int totalPlayed = _readInt(data['totalPlayed']) ?? 0;
-    final int bestScore = _readInt(data['bestScore']) ?? 0;
-    final int avgAccuracy = _readDouble(data['avgAccuracy']).round();
-    final int totalScore =
-        _readInt(data['totalScore']) ?? _readInt(data['bestScore']) ?? 0;
-    final List<String> earnedBadges = _readStringList(data['earnedBadges']);
+    final Map<String, dynamic> userData =
+        userSnap.data() ?? const <String, dynamic>{};
+    final Map<String, dynamic> scoreData =
+        scoreSnap.data() ?? const <String, dynamic>{};
+
+    final bool hasScoreDoc = scoreSnap.exists;
+    final int totalPlayed = hasScoreDoc
+        ? _readInt(scoreData['totalAttempts']) ?? 0
+        : _readInt(userData['totalPlayed']) ?? 0;
+    final int totalScore = hasScoreDoc
+        ? _readInt(scoreData['totalScore']) ??
+              _readInt(scoreData['score']) ??
+              _readInt(userData['totalScore']) ??
+              _readInt(userData['bestScore']) ??
+              0
+        : _readInt(userData['totalScore']) ??
+              _readInt(userData['bestScore']) ??
+              0;
+    final int totalCorrect = _readInt(scoreData['totalCorrect']) ?? 0;
+    final int totalQuestions = _readInt(scoreData['totalQuestions']) ?? 0;
+    final double avgAccuracyRaw = hasScoreDoc
+        ? scoreData['avgAccuracy'] is num
+              ? (scoreData['avgAccuracy'] as num).toDouble()
+              : totalQuestions > 0
+              ? (totalCorrect / totalQuestions) * 100
+              : _readDouble(userData['avgAccuracy'])
+        : _readDouble(userData['avgAccuracy']);
+    final int avgAccuracy = avgAccuracyRaw.round();
+    final int bestScore =
+        _readInt(userData['bestScore']) ?? (totalPlayed <= 1 ? totalScore : 0);
+    final List<String> earnedBadges = _readStringList(userData['earnedBadges']);
+    final String globalBadge =
+        scoreData['globalBadge'] as String? ??
+        userData['globalBadge'] as String? ??
+        _calculateGlobalBadge(totalScore);
+
+    // Sync user doc if needed
+    if (hasScoreDoc &&
+        (!userSnap.exists ||
+            (_readInt(userData['totalPlayed']) ?? 0) != totalPlayed ||
+            (_readInt(userData['totalScore']) ?? 0) != totalScore ||
+            _readDouble(userData['avgAccuracy']).round() != avgAccuracy ||
+            (userData['globalBadge'] as String? ?? '') != globalBadge)) {
+      await _syncUserDocFromScoreDoc(uid: uid);
+    }
 
     return <String, dynamic>{
       'totalPlayed': totalPlayed,
       'bestScore': bestScore,
       'avgAccuracy': avgAccuracy,
       'totalScore': totalScore,
-      'globalBadge':
-          data['globalBadge'] as String? ?? _calculateGlobalBadge(totalScore),
+      'globalBadge': globalBadge,
       'earnedBadges': earnedBadges.isNotEmpty
           ? earnedBadges
           : _calculateEarnedBadges(
               totalScore: totalScore,
               totalPlayed: totalPlayed,
-              avgAccuracy: avgAccuracy.toDouble(),
+              avgAccuracy: avgAccuracyRaw,
             ),
     };
   }
 
-  Future<void> _updateUserStats({
-    required String uid,
-    required int newScore,
-    required int newAccuracy,
-    required int earnedScore,
-  }) async {
-    final DocumentReference<Map<String, dynamic>> ref = _firestore
-        .collection('users')
-        .doc(uid);
+  /// Reads the authoritative stats from 'scores/{uid}' and mirrors them
+  /// into 'users/{uid}' so that ProfileController (which reads users/)
+  /// always reflects the same values as the leaderboard (which reads scores/).
+  Future<void> _syncUserDocFromScoreDoc({required String uid}) async {
+    try {
+      final List<DocumentSnapshot<Map<String, dynamic>>> snapshots =
+          await Future.wait<DocumentSnapshot<Map<String, dynamic>>>([
+            _firestore.collection('scores').doc(uid).get(),
+            _firestore.collection('users').doc(uid).get(),
+          ]);
 
-    await _firestore.runTransaction((Transaction tx) async {
-      final DocumentSnapshot<Map<String, dynamic>> snap = await tx.get(ref);
-      final Map<String, dynamic> data = snap.data() ?? <String, dynamic>{};
+      final DocumentSnapshot<Map<String, dynamic>> scoreSnap = snapshots[0];
+      final DocumentSnapshot<Map<String, dynamic>> userSnap = snapshots[1];
+      if (!scoreSnap.exists) return;
 
-      final int prevPlayed = _readInt(data['totalPlayed']) ?? 0;
-      final int prevBest = _readInt(data['bestScore']) ?? 0;
-      final double prevAvg = _readDouble(data['avgAccuracy']);
-      final int prevTotalScore =
-          _readInt(data['totalScore']) ?? _readInt(data['bestScore']) ?? 0;
+      final Map<String, dynamic> scoreData = scoreSnap.data()!;
+      final Map<String, dynamic> userData =
+          userSnap.data() ?? const <String, dynamic>{};
+      final int totalScore =
+          _readInt(scoreData['totalScore']) ??
+          _readInt(scoreData['score']) ??
+          0;
+      final int totalAttempts = _readInt(scoreData['totalAttempts']) ?? 0;
+      final int totalCorrect = _readInt(scoreData['totalCorrect']) ?? 0;
+      final int totalQuestions = _readInt(scoreData['totalQuestions']) ?? 0;
+      final double avgAccuracy = scoreData['avgAccuracy'] is num
+          ? (scoreData['avgAccuracy'] as num).toDouble()
+          : totalQuestions > 0
+          ? (totalCorrect / totalQuestions) * 100
+          : 0.0;
 
-      final int newTotalPlayed = prevPlayed + 1;
-      final int newBest = newScore > prevBest ? newScore : prevBest;
-      final double newAvg =
-          ((prevAvg * prevPlayed) + newAccuracy) / newTotalPlayed;
-      final int newTotalScore = prevTotalScore + earnedScore;
-
-      final List<String> storedEarnedBadges = _readStringList(
-        data['earnedBadges'],
-      );
-      final List<String> previousEarnedBadges = storedEarnedBadges.isNotEmpty
-          ? storedEarnedBadges
-          : _calculateEarnedBadges(
-              totalScore: prevTotalScore,
-              totalPlayed: prevPlayed,
-              avgAccuracy: prevAvg,
-            );
       final List<String> earnedBadges = _calculateEarnedBadges(
-        totalScore: newTotalScore,
-        totalPlayed: newTotalPlayed,
-        avgAccuracy: newAvg,
+        totalScore: totalScore,
+        totalPlayed: totalAttempts,
+        avgAccuracy: avgAccuracy,
       );
+      final int existingBestScore = _readInt(userData['bestScore']) ?? 0;
+      final int bestScore = existingBestScore > 0
+          ? existingBestScore
+          : (totalAttempts <= 1 ? totalScore : 0);
 
-      final Map<String, dynamic> updateData = <String, dynamic>{
-        'totalPlayed': newTotalPlayed,
-        'bestScore': newBest,
-        'avgAccuracy': newAvg.round(),
-        'totalScore': newTotalScore,
-        'globalBadge': _calculateGlobalBadge(newTotalScore),
+      await _firestore.collection('users').doc(uid).set(<String, dynamic>{
+        'totalPlayed': totalAttempts,
+        'totalScore': totalScore,
+        'bestScore': bestScore,
+        'avgAccuracy': avgAccuracy.round(),
+        'globalBadge': _calculateGlobalBadge(totalScore),
         'earnedBadges': earnedBadges,
-      };
-
-      final bool earnedNewBadge = earnedBadges.any(
-        (String badge) => !previousEarnedBadges.contains(badge),
-      );
-      if (earnedNewBadge) {
-        updateData['lastBadgeEarnedAt'] = FieldValue.serverTimestamp();
-      }
-
-      tx.set(ref, updateData, SetOptions(merge: true));
-    });
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('_syncUserDocFromScoreDoc error: $e');
+    }
   }
 
   Future<List<Map<String, dynamic>>> _getUniqueScores({int? limit}) async {
-    Query<Map<String, dynamic>> query = _firestore
-        .collection('scores')
-        .orderBy('totalScore', descending: true)
-        .orderBy('avgAccuracy', descending: true)
-        .orderBy('avgCompletionMs')
-        .orderBy('firstPlayedAt');
+    final int fetchLimit = limit == null
+        ? _scoreQueryLimit
+        : (limit * 5).clamp(limit, _scoreQueryLimit);
 
-    if (limit != null) {
-      query = query.limit(limit);
-    }
+    try {
+      final QuerySnapshot<Map<String, dynamic>> snapshot = await _firestore
+          .collection('scores')
+          .limit(fetchLimit)
+          .get();
+      final List<Map<String, dynamic>> uniqueScores = _collectUniqueScores(
+        snapshot.docs,
+      )..sort(_compareScoreDocs);
 
-    final QuerySnapshot<Map<String, dynamic>> snapshot = await query.get();
-    final List<Map<String, dynamic>> uniqueScores = <Map<String, dynamic>>[];
-    final Set<String> seenUsers = <String>{};
-
-    for (final QueryDocumentSnapshot<Map<String, dynamic>> doc
-        in snapshot.docs) {
-      final Map<String, dynamic> normalized = _normalizeScoreDoc(
-        doc.data(),
-        fallbackUid: doc.id,
-      );
-      final String uid = (normalized['uid'] as String? ?? '').trim();
-      final String email = (normalized['email'] as String? ?? '').trim();
-      final String userKey = uid.isNotEmpty
-          ? uid
-          : email.isNotEmpty
-          ? email
-          : doc.id;
-
-      if (seenUsers.contains(userKey)) {
-        continue;
+      if (limit != null && uniqueScores.length > limit) {
+        return uniqueScores.take(limit).toList();
       }
 
-      seenUsers.add(userKey);
-      uniqueScores.add(normalized);
+      return uniqueScores;
+    } on FirebaseException {
+      rethrow;
     }
-
-    return uniqueScores;
   }
 
   Map<String, dynamic> _normalizeScoreDoc(
@@ -457,6 +535,7 @@ class FirestoreService {
 
     final Map<String, dynamic> normalized = <String, dynamic>{
       ...data,
+      'docId': fallbackUid,
       'uid': uid,
       'totalScore': totalScore,
       'totalAttempts': totalAttempts,
@@ -471,6 +550,73 @@ class FirestoreService {
       normalized['firstPlayedAt'] = firstPlayedAt;
     }
     return normalized;
+  }
+
+  List<Map<String, dynamic>> _collectUniqueScores(
+    Iterable<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+  ) {
+    final Map<String, Map<String, dynamic>> userBestScores = <String, Map<String, dynamic>>{};
+
+    for (final QueryDocumentSnapshot<Map<String, dynamic>> doc in docs) {
+      final Map<String, dynamic> normalized = _normalizeScoreDoc(
+        doc.data(),
+        fallbackUid: doc.id,
+      );
+      
+      // Use email as primary key for uniqueness, fallback to uid or docId
+      String userKey = (normalized['email'] as String? ?? '').trim().toLowerCase();
+      if (userKey.isEmpty) {
+        userKey = (normalized['uid'] as String? ?? '').trim();
+        if (userKey.isEmpty) {
+          userKey = doc.id;
+        }
+      }
+
+      final Map<String, dynamic>? existing = userBestScores[userKey];
+      if (existing == null || _compareScoreDocs(normalized, existing) > 0) {
+        // This is a new user or a better score for existing user
+        userBestScores[userKey] = normalized;
+      }
+    }
+
+    return userBestScores.values.toList();
+  }
+
+  int _compareScoreDocs(Map<String, dynamic> a, Map<String, dynamic> b) {
+    // Primary sort: totalScore (highest first)
+    final int aScore = _readInt(a['totalScore']) ?? 0;
+    final int bScore = _readInt(b['totalScore']) ?? 0;
+    final int scoreCompare = bScore.compareTo(aScore);
+    if (scoreCompare != 0) {
+      return scoreCompare;
+    }
+
+    // Tie-breaker 1: avgAccuracy (highest first)
+    final double aAccuracy = a['avgAccuracy'] is num ? (a['avgAccuracy'] as num).toDouble() : 0.0;
+    final double bAccuracy = b['avgAccuracy'] is num ? (b['avgAccuracy'] as num).toDouble() : 0.0;
+    final int accuracyCompare = bAccuracy.compareTo(aAccuracy);
+    if (accuracyCompare != 0) {
+      return accuracyCompare;
+    }
+
+    // Tie-breaker 2: totalAttempts (fewer attempts is better - shows efficiency)
+    final int aAttempts = _readInt(a['totalAttempts']) ?? 0;
+    final int bAttempts = _readInt(b['totalAttempts']) ?? 0;
+    final int attemptsCompare = aAttempts.compareTo(bAttempts);
+    if (attemptsCompare != 0) {
+      return attemptsCompare;
+    }
+
+    // Final tie-breaker: email/uid for consistent ordering
+    final String aEmail = (a['email'] as String? ?? '').trim().toLowerCase();
+    final String bEmail = (b['email'] as String? ?? '').trim().toLowerCase();
+    if (aEmail.isNotEmpty && bEmail.isNotEmpty) {
+      return aEmail.compareTo(bEmail);
+    }
+
+    final String aUid = (a['uid'] as String? ?? '').trim();
+    final String bUid = (b['uid'] as String? ?? '').trim();
+    return aUid.compareTo(bUid);
   }
 
   int? _readInt(Object? value) {

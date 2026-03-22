@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 import 'package:quiz_app/core/services/auth_service.dart';
 import 'package:quiz_app/core/services/firestore_service.dart';
@@ -49,10 +50,23 @@ class LeaderboardController extends GetxController {
         scores.assignAll(results[0] as List<Map<String, dynamic>>);
         totalRankedUsers.value = results[1] as int;
       }
-    } on Exception catch (e) {
-      errorMessage.value = e.toString();
+    } on FirebaseException catch (error) {
+      errorMessage.value = _buildErrorMessage(error);
+    } catch (_) {
+      errorMessage.value = 'Unable to load leaderboard data right now.';
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  String _buildErrorMessage(FirebaseException error) {
+    switch (error.code) {
+      case 'permission-denied':
+        return 'Leaderboard access is blocked by current Firestore rules.';
+      case 'unavailable':
+        return 'The leaderboard service is temporarily unavailable.';
+      default:
+        return 'Unable to load leaderboard data right now.';
     }
   }
 }

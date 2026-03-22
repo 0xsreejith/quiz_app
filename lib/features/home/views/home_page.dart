@@ -27,7 +27,7 @@ class HomePage extends GetView<HomeController> {
             return Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                children: [
+                children: <Widget>[
                   const Icon(
                     Icons.error_outline,
                     color: AppColors.textMuted,
@@ -41,6 +41,15 @@ class HomePage extends GetView<HomeController> {
                       fontWeight: FontWeight.w600,
                       color: AppColors.textDarkest,
                     ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    controller.errorMessage.value,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textMuted,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
                   TextButton(
@@ -89,8 +98,8 @@ class HomePage extends GetView<HomeController> {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const <Widget>[
-                Text(
+              children: <Widget>[
+                const Text(
                   'Explore Quizzes',
                   style: TextStyle(
                     fontSize: 26,
@@ -99,10 +108,28 @@ class HomePage extends GetView<HomeController> {
                     letterSpacing: -0.5,
                   ),
                 ),
-                SizedBox(height: 4),
-                Text(
+                const SizedBox(height: 4),
+                const Text(
                   'Test your knowledge across categories',
                   style: TextStyle(fontSize: 14, color: AppColors.textMuted),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () => controller.navigateToCategories(),
+                  icon: const Icon(Icons.play_arrow_rounded, size: 20),
+                  label: const Text('Play Quiz'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 0,
+                  ),
                 ),
               ],
             ),
@@ -187,7 +214,7 @@ class HomePage extends GetView<HomeController> {
           ),
           const SizedBox(width: 12),
           _StatChip(
-            icon: Icons.emoji_events_outlined,
+            icon: Icons.stars_rounded,
             valueWidget: Obx(
               () => Text(
                 controller.userBestScore.value > 0
@@ -220,6 +247,24 @@ class HomePage extends GetView<HomeController> {
             ),
             label: 'Played',
             color: AppColors.accentGreen,
+          ),
+          const SizedBox(width: 12),
+          _StatChip(
+            icon: Icons.track_changes_rounded,
+            valueWidget: Obx(
+              () => Text(
+                controller.userAvgAccuracy.value > 0
+                    ? '${controller.userAvgAccuracy.value}%'
+                    : '—',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+            label: 'Accuracy',
+            color: AppColors.primary,
           ),
         ],
       ),
