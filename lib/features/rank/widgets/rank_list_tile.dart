@@ -9,6 +9,7 @@ class RankListTile extends StatelessWidget {
     required this.accuracy,
     required this.score,
     required this.avatarWidget,
+    this.badgeEmoji,
   });
 
   final String rank;
@@ -16,6 +17,7 @@ class RankListTile extends StatelessWidget {
   final String accuracy;
   final String score;
   final Widget avatarWidget;
+  final String? badgeEmoji;
 
   @override
   Widget build(BuildContext context) {
@@ -40,13 +42,24 @@ class RankListTile extends StatelessWidget {
           avatarWidget,
           const SizedBox(width: 16),
           Expanded(
-            child: Text(
-              name,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: AppColors.textDark,
-              ),
+            child: Row(
+              children: <Widget>[
+                Flexible(
+                  child: Text(
+                    name,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textDark,
+                    ),
+                  ),
+                ),
+                if (badgeEmoji != null && badgeEmoji!.isNotEmpty) ...<Widget>[
+                  const SizedBox(width: 6),
+                  Text(badgeEmoji!, style: const TextStyle(fontSize: 14)),
+                ],
+              ],
             ),
           ),
           Text(

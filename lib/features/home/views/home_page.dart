@@ -200,7 +200,7 @@ class HomePage extends GetView<HomeController> {
                 ),
               ),
             ),
-            label: 'Top Score',
+            label: 'Total Pts',
             color: const Color(0xFFD4AF37),
           ),
           const SizedBox(width: 12),

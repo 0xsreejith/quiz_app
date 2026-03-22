@@ -15,6 +15,7 @@ class LeaderboardController extends GetxController {
 
   /// The user's authoritative global rank (not limited to top-50).
   final RxInt userGlobalRank = 0.obs;
+  final RxInt totalRankedUsers = 0.obs;
 
   @override
   void onInit() {
@@ -33,15 +34,20 @@ class LeaderboardController extends GetxController {
           _firestoreService.getTopScores(limit: 50),
           _firestoreService.getUserScoreDoc(uid),
           _firestoreService.getUserGlobalRank(uid),
+          _firestoreService.getRankedUserCount(),
         ]);
 
         scores.assignAll(results[0] as List<Map<String, dynamic>>);
         userScoreDoc.value = results[1] as Map<String, dynamic>?;
         userGlobalRank.value = results[2] as int;
+        totalRankedUsers.value = results[3] as int;
       } else {
-        final List<Map<String, dynamic>> result =
-            await _firestoreService.getTopScores(limit: 50);
-        scores.assignAll(result);
+        final List<Object> results = await Future.wait(<Future<Object>>[
+          _firestoreService.getTopScores(limit: 50),
+          _firestoreService.getRankedUserCount(),
+        ]);
+        scores.assignAll(results[0] as List<Map<String, dynamic>>);
+        totalRankedUsers.value = results[1] as int;
       }
     } on Exception catch (e) {
       errorMessage.value = e.toString();

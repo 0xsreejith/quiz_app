@@ -17,6 +17,7 @@ class HomeController extends FullLifeCycleController with FullLifeCycleMixin {
 
   final RxInt userBestScore = 0.obs;
   final RxInt userTotalPlayed = 0.obs;
+  final RxString userGlobalBadge = 'unranked'.obs;
 
   List<CategoryModel> get filteredCategories {
     final String query = searchQuery.value.trim().toLowerCase();
@@ -93,7 +94,7 @@ class HomeController extends FullLifeCycleController with FullLifeCycleMixin {
             : i == 1
             ? 'Runner Up'
             : 'Top 3',
-        points: s['score'] as int? ?? 0,
+        points: s['totalScore'] as int? ?? 0,
         avatarUrl: '',
         badge: i == 0
             ? '🏆'
@@ -111,8 +112,9 @@ class HomeController extends FullLifeCycleController with FullLifeCycleMixin {
     final Map<String, dynamic> stats = await _firestoreService.getUserStats(
       uid,
     );
-    userBestScore.value = stats['bestScore'] as int? ?? 0;
+    userBestScore.value = stats['totalScore'] as int? ?? 0;
     userTotalPlayed.value = stats['totalPlayed'] as int? ?? 0;
+    userGlobalBadge.value = stats['globalBadge'] as String? ?? 'unranked';
   }
 
   void navigateToProfile(String userId) {

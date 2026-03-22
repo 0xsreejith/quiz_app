@@ -21,6 +21,7 @@ class QuizController extends GetxController {
 
   final RxInt timeLeft = questionTimeSeconds.obs;
   Timer? _timer;
+  DateTime? _quizStartTime;
   bool _isFinishing = false;
   bool _nextScheduled = false;
 
@@ -62,6 +63,7 @@ class QuizController extends GetxController {
     _nextScheduled = false;
     isLoading.value = true;
     errorMessage.value = null;
+    _quizStartTime = null;
     try {
       final List<QuestionModel> result = await _apiService.fetchQuestions(
         categoryId: categoryId,
@@ -71,6 +73,7 @@ class QuizController extends GetxController {
       score.value = 0;
       selectedAnswer.value = null;
       hasAnswered.value = false;
+      _quizStartTime = DateTime.now();
       _startTimer();
     } on Exception catch (e) {
       errorMessage.value = e.toString();
@@ -145,6 +148,9 @@ class QuizController extends GetxController {
     final int finalCorrectAnswers = correctAnswers;
     final String finalCategoryName = categoryName.value ?? '';
     final String finalCategoryEmoji = categoryEmoji.value ?? '';
+    final int completionMs = _quizStartTime == null
+        ? 0
+        : DateTime.now().difference(_quizStartTime!).inMilliseconds;
 
     if (user != null) {
       try {
@@ -152,7 +158,10 @@ class QuizController extends GetxController {
         await firestoreService.saveScore(
           uid: user.uid,
           email: user.email ?? 'Unknown',
-          score: finalScore,
+          earnedScore: finalScore,
+          correctAnswers: finalCorrectAnswers,
+          totalQuestions: totalQuestionCount,
+          completionMs: completionMs,
           displayName:
               user.displayName ?? (user.email?.split('@').first ?? 'Unknown'),
         );

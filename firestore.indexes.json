@@ -1,0 +1,27 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "scores",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "totalScore",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "avgAccuracy",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "avgCompletionMs",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "firstPlayedAt",
+          "order": "ASCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

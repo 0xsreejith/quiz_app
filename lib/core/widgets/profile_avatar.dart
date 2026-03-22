@@ -11,10 +11,12 @@ class ProfileAvatar extends StatelessWidget {
     super.key,
     required this.email,
     required this.tags,
+    required this.badgeLabel,
   });
 
   final String email;
   final List<String> tags;
+  final String badgeLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -36,8 +38,7 @@ class ProfileAvatar extends StatelessWidget {
           spacing: 8,
           runSpacing: 8,
           alignment: WrapAlignment.center,
-          children:
-              tags.map((String tag) => TagChip(label: tag)).toList(),
+          children: tags.map((String tag) => TagChip(label: tag)).toList(),
         ),
       ],
     );
@@ -56,7 +57,11 @@ class ProfileAvatar extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppSpacing.avatarRadius),
             border: Border.all(color: AppColors.primaryLight, width: 3),
           ),
-          child: const Icon(Icons.person, size: 48, color: AppColors.avatarIcon),
+          child: const Icon(
+            Icons.person,
+            size: 48,
+            color: AppColors.avatarIcon,
+          ),
         ),
         Positioned(
           bottom: -10,
@@ -68,13 +73,13 @@ class ProfileAvatar extends StatelessWidget {
               ),
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Row(
+            child: Row(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
                 Icon(Icons.verified, color: Colors.white, size: 14),
                 SizedBox(width: 4),
                 Text(
-                  'ELITE TIER',
+                  badgeLabel.toUpperCase(),
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 11,
