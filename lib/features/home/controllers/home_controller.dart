@@ -21,7 +21,7 @@ class HomeController extends FullLifeCycleController with FullLifeCycleMixin {
   final RxInt userAvgAccuracy = 0.obs;
   final RxString userGlobalBadge = 'unranked'.obs;
 
-  int _loadGen = 0;
+  DateTime? _lastLoadTime;
 
   List<CategoryModel> get filteredCategories {
     final String query = searchQuery.value.trim().toLowerCase();
@@ -37,40 +37,38 @@ class HomeController extends FullLifeCycleController with FullLifeCycleMixin {
     loadData();
   }
 
-  Future<void> loadData({bool fromServer = false}) async {
-    final int gen = ++_loadGen;
+  Future<void> loadData() async {
     isLoading.value = true;
     errorMessage.value = '';
     try {
-      await Future.wait(<Future<void>>[
-        _loadTopPerformers(gen: gen, fromServer: fromServer),
-        _loadUserStats(gen: gen, fromServer: fromServer),
-      ]);
+      await Future.wait(<Future<void>>[_loadTopPerformers(), _loadUserStats()]);
     } on FirebaseException catch (error) {
-      if (gen == _loadGen) {
-        errorMessage.value = _buildErrorMessage(error);
-      }
+      errorMessage.value = _buildErrorMessage(error);
     } catch (_) {
-      if (gen == _loadGen) {
-        errorMessage.value = 'Unable to load home data right now.';
-      }
+      errorMessage.value = 'Unable to load home data right now.';
     } finally {
-      if (gen == _loadGen) {
-        isLoading.value = false;
-      }
+      isLoading.value = false;
+      _lastLoadTime = DateTime.now();
     }
   }
 
   @override
   void onResumed() {
-    final int gen = _loadGen;
-    _loadUserStats(gen: gen, fromServer: false).catchError((_) {});
-    _loadTopPerformers(gen: gen, fromServer: false).catchError((_) {});
+    final DateTime now = DateTime.now();
+    if (_lastLoadTime == null ||
+        now.difference(_lastLoadTime!) > const Duration(minutes: 5)) {
+      _loadUserStats().catchError((_) {});
+      _loadTopPerformers().catchError((_) {});
+    }
   }
 
-  /// Reload from Firestore with server reads so totals match the quiz you just
-  /// finished (avoids stale cache and races with [loadData]).
-  Future<void> refreshAfterQuiz() => loadData(fromServer: true);
+  Future<void> refreshAfterQuiz() async {
+    await Future.wait<void>(<Future<void>>[
+      _loadUserStats(),
+      _loadTopPerformers(),
+    ]);
+    _lastLoadTime = DateTime.now();
+  }
 
   @override
   void onDetached() {}
@@ -84,13 +82,9 @@ class HomeController extends FullLifeCycleController with FullLifeCycleMixin {
   @override
   void onHidden() {}
 
-  Future<void> _loadTopPerformers({
-    required int gen,
-    bool fromServer = false,
-  }) async {
+  Future<void> _loadTopPerformers() async {
     final List<Map<String, dynamic>> result = await _firestoreService
-        .getTopScores(limit: 3, fromServer: fromServer);
-    if (gen != _loadGen) return;
+        .getTopScores(limit: 3);
     final String uid = _authService.currentUser?.uid ?? '';
     topPerformers.value = result.asMap().entries.map((
       MapEntry<int, Map<String, dynamic>> entry,
@@ -122,17 +116,12 @@ class HomeController extends FullLifeCycleController with FullLifeCycleMixin {
     }).toList();
   }
 
-  Future<void> _loadUserStats({
-    required int gen,
-    bool fromServer = false,
-  }) async {
+  Future<void> _loadUserStats() async {
     final String? uid = _authService.currentUser?.uid;
     if (uid == null) return;
     final Map<String, dynamic> stats = await _firestoreService.getUserStats(
       uid,
-      fromServer: fromServer,
     );
-    if (gen != _loadGen) return;
     userBestScore.value = (stats['totalScore'] as num?)?.toInt() ?? 0;
     userTotalPlayed.value = (stats['totalPlayed'] as num?)?.toInt() ?? 0;
     userAvgAccuracy.value = (stats['avgAccuracy'] as num?)?.round() ?? 0;

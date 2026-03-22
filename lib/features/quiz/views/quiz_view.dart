@@ -29,6 +29,26 @@ class QuizView extends GetView<QuizController> {
         ),
         body: SafeArea(
           child: Obx(() {
+            if (controller.isFinishing.value) {
+              return const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(color: AppColors.primary),
+                    SizedBox(height: 20),
+                    Text(
+                      'Saving results...',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+
             if (controller.isLoading.value) {
               return const Center(child: CircularProgressIndicator());
             }

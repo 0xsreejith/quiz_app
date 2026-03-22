@@ -11,18 +11,67 @@ import 'package:quiz_app/features/quiz/widgets/final_score_card.dart';
 import 'package:quiz_app/features/rank/controllers/leaderboard_controller.dart';
 import 'package:quiz_app/routes/app_routes.dart';
 
-class ResultPage extends StatelessWidget {
+class ResultPage extends StatefulWidget {
   const ResultPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  State<ResultPage> createState() => _ResultPageState();
+}
+
+class _ResultPageState extends State<ResultPage> {
+  bool _isGoingHome = false;
+  late final int _score;
+  late final int _totalQuestions;
+  late final int _correctAnswers;
+  late final RxInt _rxScore;
+
+  @override
+  void initState() {
+    super.initState();
     final Map<String, dynamic> args =
         Get.arguments as Map<String, dynamic>? ?? {};
-    final int earnedPointsValue = args['score'] as int? ?? 0;
-    final int correctAnswers = args['correctAnswers'] as int? ?? 0;
-    final int totalQuestions = args['totalQuestions'] as int? ?? 0;
-    final RxInt earnedPoints = earnedPointsValue.obs;
+    _score = args['score'] as int? ?? 0;
+    _totalQuestions = args['totalQuestions'] as int? ?? 0;
+    _correctAnswers = args['correctAnswers'] as int? ?? _score;
+    _rxScore = _score.obs;
+  }
 
+  Future<void> _goHome() async {
+    if (_isGoingHome) return;
+    setState(() => _isGoingHome = true);
+
+    final List<Future<void>> refreshJobs = <Future<void>>[];
+
+    if (Get.isRegistered<HomeController>()) {
+      refreshJobs.add(
+        Get.find<HomeController>().refreshAfterQuiz().catchError((_) {}),
+      );
+    }
+    if (Get.isRegistered<HistoryController>()) {
+      refreshJobs.add(
+        Get.find<HistoryController>().refreshHistory().catchError((_) {}),
+      );
+    }
+    if (Get.isRegistered<ProfileController>()) {
+      refreshJobs.add(
+        Get.find<ProfileController>().refreshAfterQuiz().catchError((_) {}),
+      );
+    }
+    if (Get.isRegistered<LeaderboardController>()) {
+      refreshJobs.add(
+        Get.find<LeaderboardController>().fetchLeaderboard().catchError((_) {}),
+      );
+    }
+
+    await Future.wait(refreshJobs);
+
+    if (mounted) {
+      Get.offAllNamed(AppRoutes.appShell);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return PopScope<void>(
       canPop: false,
       onPopInvokedWithResult: (bool didPop, void result) async {
@@ -76,21 +125,18 @@ class ResultPage extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: AppSpacing.xxxl),
-
                       FinalScoreCard(
-                        score: earnedPoints,
-                        correctAnswers: correctAnswers,
-                        totalQuestions: totalQuestions,
+                        score: _rxScore,
+                        correctAnswers: _correctAnswers,
+                        totalQuestions: _totalQuestions,
                       ),
                       const SizedBox(height: AppSpacing.lg),
-
                       CorrectAnswersCard(
-                        correctAnswers: correctAnswers,
-                        totalQuestions: totalQuestions,
+                        correctAnswers: _correctAnswers,
+                        totalQuestions: _totalQuestions,
                       ),
                       const SizedBox(height: 48),
-
-                      _buildActionButtons(),
+                      _buildHomeButton(),
                     ],
                   ),
                 ),
@@ -102,80 +148,45 @@ class ResultPage extends StatelessWidget {
     );
   }
 
-  Widget _buildActionButtons() {
-    return Column(
-      children: [
-        ElevatedButton(
-          onPressed: _goHome,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            padding: const EdgeInsets.symmetric(vertical: 18),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-            elevation: 0,
+  Widget _buildHomeButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: _isGoingHome ? null : _goHome,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.6),
+          padding: const EdgeInsets.symmetric(vertical: 18),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
           ),
-          child: const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'Back to Home',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-              SizedBox(width: 8),
-              Icon(Icons.home_outlined, color: Colors.white, size: 20),
-            ],
-          ),
+          elevation: 0,
         ),
-        const SizedBox(height: AppSpacing.lg),
-      ],
+        child: _isGoingHome
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Back to Home',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                  SizedBox(width: 8),
+                  Icon(Icons.home_outlined, color: Colors.white, size: 20),
+                ],
+              ),
+      ),
     );
-  }
-
-  Future<void> _goHome() async {
-    // Replace the route stack first; the previous shell controllers were
-    // disposed, so refreshing before navigation updated nothing visible.
-    await Get.offAllNamed(AppRoutes.appShell);
-    await Future<void>.delayed(const Duration(milliseconds: 100));
-    await _refreshShellDataAfterQuiz();
-  }
-
-  /// Pulls authoritative totals from the server so home, rank, profile, and
-  /// history match the quiz that just finished.
-  Future<void> _refreshShellDataAfterQuiz() async {
-    await Future.wait<void>(<Future<void>>[
-      _runRefresh(() async {
-        if (Get.isRegistered<HomeController>()) {
-          await Get.find<HomeController>().refreshAfterQuiz();
-        }
-      }),
-      _runRefresh(() async {
-        if (Get.isRegistered<ProfileController>()) {
-          await Get.find<ProfileController>().loadProfileData(fromServer: true);
-        }
-      }),
-      _runRefresh(() async {
-        if (Get.isRegistered<LeaderboardController>()) {
-          await Get.find<LeaderboardController>().fetchLeaderboard(
-            fromServer: true,
-          );
-        }
-      }),
-      _runRefresh(() async {
-        if (Get.isRegistered<HistoryController>()) {
-          await Get.find<HistoryController>().loadHistory(fromServer: true);
-        }
-      }),
-    ]);
-  }
-
-  Future<void> _runRefresh(Future<void> Function() fn) async {
-    try {
-      await fn();
-    } catch (_) {}
   }
 }

@@ -22,7 +22,7 @@ class QuizController extends GetxController {
   final RxInt timeLeft = questionTimeSeconds.obs;
   Timer? _timer;
   DateTime? _quizStartTime;
-  bool _isFinishing = false;
+  bool _finishQuizStarted = false;
   bool _nextScheduled = false;
 
   QuizController();
@@ -44,7 +44,7 @@ class QuizController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxnString errorMessage = RxnString();
   final RxBool hasAnswered = false.obs;
-  int _questionBonus = 0;
+  final RxBool isFinishing = false.obs;
 
   QuestionModel get currentQuestion => questions[currentIndex.value];
   bool get isLastQuestion => currentIndex.value == questions.length - 1;
@@ -61,8 +61,9 @@ class QuizController extends GetxController {
 
   Future<void> loadQuestions() async {
     _timer?.cancel();
-    _isFinishing = false;
+    _finishQuizStarted = false;
     _nextScheduled = false;
+    isFinishing.value = false;
     isLoading.value = true;
     errorMessage.value = null;
     _quizStartTime = null;
@@ -74,7 +75,6 @@ class QuizController extends GetxController {
       currentIndex.value = 0;
       score.value = 0;
       earnedPoints.value = 0;
-      _questionBonus = 0;
       selectedAnswer.value = null;
       hasAnswered.value = false;
       _quizStartTime = DateTime.now();
@@ -113,8 +113,7 @@ class QuizController extends GetxController {
       score.value++;
       final int timeBonus = ((timeLeft.value / questionTimeSeconds) * 5)
           .round();
-      _questionBonus += timeBonus;
-      earnedPoints.value = (score.value * 10) + _questionBonus;
+      earnedPoints.value += 10 + timeBonus;
     } else {
       HapticFeedback.vibrate();
     }
@@ -124,6 +123,9 @@ class QuizController extends GetxController {
   void _scheduleNextQuestion() {
     if (_nextScheduled) return;
     _nextScheduled = true;
+    if (isLastQuestion && hasAnswered.value) {
+      isFinishing.value = true;
+    }
     Future.delayed(const Duration(milliseconds: 1500), () {
       if (!isClosed) {
         _nextScheduled = false;
@@ -145,9 +147,11 @@ class QuizController extends GetxController {
   }
 
   Future<void> finishQuiz() async {
-    if (_isFinishing) return;
-    _isFinishing = true;
+    if (_finishQuizStarted) return;
+    _finishQuizStarted = true;
+    isFinishing.value = true;
     _timer?.cancel();
+
     final AuthService authService = Get.find<AuthService>();
     final FirestoreService firestoreService = Get.find<FirestoreService>();
     final User? user = authService.currentUser;
@@ -162,10 +166,9 @@ class QuizController extends GetxController {
 
     if (user != null) {
       try {
-        // Save to global scores collection
         await firestoreService.saveScore(
           uid: user.uid,
-          email: user.email ?? 'Unknown',
+          email: user.email ?? 'unknown@unknown.com',
           earnedScore: finalEarnedPoints,
           correctAnswers: finalCorrectAnswers,
           totalQuestions: totalQuestionCount,
@@ -174,32 +177,30 @@ class QuizController extends GetxController {
               user.displayName ?? (user.email?.split('@').first ?? 'Unknown'),
         );
 
-        // Save to category scores
-        if (categoryId != null) {
-          await firestoreService.saveCategoryScore(
+        await Future.wait(<Future<void>>[
+          if (categoryId != null)
+            firestoreService.saveCategoryScore(
+              uid: user.uid,
+              categoryId: categoryId!,
+              categoryName: finalCategoryName,
+              categoryEmoji: finalCategoryEmoji,
+              score: finalEarnedPoints,
+              correctAnswers: finalCorrectAnswers,
+              totalQuestions: totalQuestionCount,
+            ),
+          firestoreService.saveQuizHistory(
             uid: user.uid,
-            categoryId: categoryId!,
-            categoryName: finalCategoryName,
-            categoryEmoji: finalCategoryEmoji,
+            categoryName: finalCategoryName.isNotEmpty
+                ? finalCategoryName
+                : 'General',
+            categoryEmoji: finalCategoryEmoji.isNotEmpty
+                ? finalCategoryEmoji
+                : '📝',
             score: finalEarnedPoints,
-            correctAnswers: finalCorrectAnswers,
             totalQuestions: totalQuestionCount,
-          );
-        }
-
-        // Save to quiz history
-        await firestoreService.saveQuizHistory(
-          uid: user.uid,
-          categoryName: finalCategoryName.isNotEmpty
-              ? finalCategoryName
-              : 'General',
-          categoryEmoji: finalCategoryEmoji.isNotEmpty
-              ? finalCategoryEmoji
-              : '📝',
-          score: finalEarnedPoints,
-          totalQuestions: totalQuestionCount,
-          correctAnswers: finalCorrectAnswers,
-        );
+            correctAnswers: finalCorrectAnswers,
+          ),
+        ]);
       } catch (e) {
         debugPrint('Error saving quiz results: $e');
       }
@@ -209,8 +210,8 @@ class QuizController extends GetxController {
       AppRoutes.result,
       arguments: <String, dynamic>{
         'score': finalEarnedPoints,
-        'correctAnswers': finalCorrectAnswers,
         'totalQuestions': totalQuestionCount,
+        'correctAnswers': finalCorrectAnswers,
       },
     );
   }
