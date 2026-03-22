@@ -19,6 +19,9 @@ abstract final class AppColors {
   static const Color divider = Color(0xFFE8ECF2);
   static const Color avatarBg = Color(0xFFE0E4EB);
   static const Color avatarIcon = Color(0xFFB0B8C9);
+  static const Color scaffoldBg = Color(0xFFF9FAFB);
+  static const Color inputFieldBg = Color(0xFFF5F6FA);
+  static const Color dangerBg = Color(0xFFFFF0F0);
 
   // ── Semantic ────────────────────────────────────────────────────────
   static const Color accentGreen = Color(0xFF4CAF50);

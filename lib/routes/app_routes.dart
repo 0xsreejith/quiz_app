@@ -8,4 +8,5 @@ abstract final class AppRoutes {
   static const String liveSession = '/live-session';
   static const String profile = '/profile';
   static const String categories = '/categories';
+  static const String settings = '/settings';
 }

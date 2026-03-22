@@ -107,8 +107,6 @@ class ProfilePage extends StatelessWidget {
                 _buildCategoryBadgesSection(controller),
                 AppSpacing.verticalXxl,
                 _buildAccountArchitectureSection(),
-                AppSpacing.verticalXxl,
-                _buildLogoutButton(Get.find<AuthController>()),
                 AppSpacing.verticalLg,
               ],
             ),
@@ -199,27 +197,7 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  Widget _buildLogoutButton(AuthController controller) {
-    return SizedBox(
-      width: double.infinity,
-      height: 50,
-      child: OutlinedButton.icon(
-        onPressed: controller.logout,
-        icon: const Icon(Icons.logout_rounded, size: 20),
-        label: const Text(
-          'Sign Out',
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-        ),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.logoutRed,
-          side: const BorderSide(color: AppColors.logoutBorder),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppSpacing.buttonRadius),
-          ),
-        ),
-      ),
-    );
-  }
+
 }
 
 class _BadgeChip extends StatelessWidget {

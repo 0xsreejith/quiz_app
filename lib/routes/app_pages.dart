@@ -5,6 +5,7 @@ import 'package:quiz_app/features/categories/bindings/categories_binding.dart';
 import 'package:quiz_app/features/categories/views/categories_page.dart';
 import 'package:quiz_app/features/live/views/live_page.dart';
 import 'package:quiz_app/features/profile/views/profile_page.dart';
+import 'package:quiz_app/features/settings/views/settings_page.dart';
 import 'package:quiz_app/features/quiz/bindings/quiz_binding.dart';
 import 'package:quiz_app/features/quiz/views/quiz_view.dart';
 import 'package:quiz_app/features/quiz/views/result_page.dart';
@@ -48,6 +49,10 @@ class AppPages {
       name: AppRoutes.categories,
       page: () => const CategoriesPage(),
       binding: CategoriesBinding(),
+    ),
+    GetPage<SettingsPage>(
+      name: AppRoutes.settings,
+      page: () => const SettingsPage(),
     ),
   ];
 }

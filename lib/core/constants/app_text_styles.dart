@@ -227,4 +227,75 @@ abstract final class AppTextStyles {
     fontWeight: FontWeight.w600,
     letterSpacing: 0.5,
   );
+
+  // ── Settings Screen ─────────────────────────────────────────────────
+
+  /// Settings page large title.
+  static const TextStyle settingsPageTitle = TextStyle(
+    fontSize: 34,
+    fontWeight: FontWeight.w800,
+    color: AppColors.textDarkest,
+    letterSpacing: -0.5,
+  );
+
+  /// Small system config label.
+  static TextStyle configLabel({Color? color}) => TextStyle(
+    fontSize: 10,
+    fontWeight: FontWeight.w700,
+    color: color ?? AppColors.primary,
+    letterSpacing: 1.5,
+  );
+
+  /// Secure environment / tiny muted label.
+  static TextStyle secureLabel({Color? color}) => TextStyle(
+    fontSize: 10,
+    fontWeight: FontWeight.w600,
+    color: color ?? AppColors.textMuted,
+    letterSpacing: 1.2,
+  );
+
+  /// Display name in identity field.
+  static const TextStyle identityName = TextStyle(
+    fontSize: 16,
+    fontWeight: FontWeight.w500,
+    color: AppColors.textDarkest,
+  );
+
+  /// Settings mode option label.
+  static TextStyle modeOptionLabel({required bool isSelected}) => TextStyle(
+    fontSize: 15,
+    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+    color: isSelected ? AppColors.textDarkest : AppColors.textMuted,
+  );
+
+  /// Sign out link.
+  static const TextStyle signOutLink = TextStyle(
+    fontSize: 13,
+    fontWeight: FontWeight.w600,
+    color: AppColors.logoutRed,
+    letterSpacing: 1.0,
+  );
+
+  /// Save button text.
+  static const TextStyle saveButton = TextStyle(
+    fontSize: 14,
+    fontWeight: FontWeight.w700,
+    color: AppColors.white,
+    letterSpacing: 1.0,
+  );
+
+  /// Version footer.
+  static TextStyle versionText({Color? color}) => TextStyle(
+    fontSize: 10,
+    color: color ?? AppColors.textMuted,
+    height: 1.6,
+    letterSpacing: 0.5,
+  );
+
+  /// Helper text below a field.
+  static TextStyle helperText({Color? color}) => TextStyle(
+    fontSize: 11,
+    color: color ?? AppColors.textMuted,
+    height: 1.4,
+  );
 }
