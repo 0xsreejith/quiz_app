@@ -12,7 +12,7 @@ class SplashController extends GetxController {
   Future<void> onReady() async {
     super.onReady();
 
-    await Future<void>.delayed(const Duration(seconds: 2));
+    await Future<void>.delayed(const Duration(milliseconds: 3000));
     if (isClosed) {
       return;
     }
