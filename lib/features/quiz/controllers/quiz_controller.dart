@@ -39,10 +39,12 @@ class QuizController extends GetxController {
   final RxList<QuestionModel> questions = <QuestionModel>[].obs;
   final RxInt currentIndex = 0.obs;
   final RxInt score = 0.obs;
+  final RxInt earnedPoints = 0.obs;
   final RxnString selectedAnswer = RxnString();
   final RxBool isLoading = false.obs;
   final RxnString errorMessage = RxnString();
   final RxBool hasAnswered = false.obs;
+  int _questionBonus = 0;
 
   QuestionModel get currentQuestion => questions[currentIndex.value];
   bool get isLastQuestion => currentIndex.value == questions.length - 1;
@@ -71,6 +73,8 @@ class QuizController extends GetxController {
       questions.assignAll(result);
       currentIndex.value = 0;
       score.value = 0;
+      earnedPoints.value = 0;
+      _questionBonus = 0;
       selectedAnswer.value = null;
       hasAnswered.value = false;
       _quizStartTime = DateTime.now();
@@ -107,6 +111,10 @@ class QuizController extends GetxController {
     hasAnswered.value = true;
     if (currentQuestion.checkAnswer(answer)) {
       score.value++;
+      final int timeBonus = ((timeLeft.value / questionTimeSeconds) * 5)
+          .round();
+      _questionBonus += timeBonus;
+      earnedPoints.value = (score.value * 10) + _questionBonus;
     } else {
       HapticFeedback.vibrate();
     }
@@ -143,7 +151,7 @@ class QuizController extends GetxController {
     final AuthService authService = Get.find<AuthService>();
     final FirestoreService firestoreService = Get.find<FirestoreService>();
     final User? user = authService.currentUser;
-    final int finalScore = score.value;
+    final int finalEarnedPoints = earnedPoints.value;
     final int totalQuestionCount = questions.length;
     final int finalCorrectAnswers = correctAnswers;
     final String finalCategoryName = categoryName.value ?? '';
@@ -158,7 +166,7 @@ class QuizController extends GetxController {
         await firestoreService.saveScore(
           uid: user.uid,
           email: user.email ?? 'Unknown',
-          earnedScore: finalScore,
+          earnedScore: finalEarnedPoints,
           correctAnswers: finalCorrectAnswers,
           totalQuestions: totalQuestionCount,
           completionMs: completionMs,
@@ -173,7 +181,8 @@ class QuizController extends GetxController {
             categoryId: categoryId!,
             categoryName: finalCategoryName,
             categoryEmoji: finalCategoryEmoji,
-            score: finalScore,
+            score: finalEarnedPoints,
+            correctAnswers: finalCorrectAnswers,
             totalQuestions: totalQuestionCount,
           );
         }
@@ -187,7 +196,7 @@ class QuizController extends GetxController {
           categoryEmoji: finalCategoryEmoji.isNotEmpty
               ? finalCategoryEmoji
               : '📝',
-          score: finalScore,
+          score: finalEarnedPoints,
           totalQuestions: totalQuestionCount,
           correctAnswers: finalCorrectAnswers,
         );
@@ -198,7 +207,11 @@ class QuizController extends GetxController {
 
     Get.offNamed(
       AppRoutes.result,
-      arguments: {'score': finalScore, 'totalQuestions': totalQuestionCount},
+      arguments: <String, dynamic>{
+        'score': finalEarnedPoints,
+        'correctAnswers': finalCorrectAnswers,
+        'totalQuestions': totalQuestionCount,
+      },
     );
   }
 

@@ -6,11 +6,13 @@ import 'package:quiz_app/core/constants/app_spacing.dart';
 class FinalScoreCard extends StatelessWidget {
   const FinalScoreCard({
     required this.score,
+    required this.correctAnswers,
     required this.totalQuestions,
     super.key,
   });
 
   final RxInt score;
+  final int correctAnswers;
   final int totalQuestions;
 
   @override
@@ -48,19 +50,24 @@ class FinalScoreCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Obx(() => Text(
-                    '${score.value}',
-                    style: const TextStyle(
-                      fontSize: 48,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
-                      height: 1.0,
+                  Obx(
+                    () => Text(
+                      '${score.value}',
+                      style: const TextStyle(
+                        fontSize: 48,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                        height: 1.0,
+                      ),
                     ),
-                  )),
+                  ),
                 ],
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.green.shade50,
                   borderRadius: BorderRadius.circular(4),
@@ -89,39 +96,28 @@ class FinalScoreCard extends StatelessWidget {
             children: [
               Text(
                 'Accuracy',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.grey.shade600,
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+              ),
+              Text(
+                totalQuestions > 0
+                    ? '${((correctAnswers / totalQuestions) * 100).round()}%'
+                    : '0%',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textDarkest,
                 ),
               ),
-              Obx(() {
-                final acc = totalQuestions > 0 
-                  ? (score.value / totalQuestions * 100).toStringAsFixed(0) 
-                  : '0';
-                return Text(
-                  '$acc%',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textDarkest,
-                  ),
-                );
-              }),
             ],
           ),
           const SizedBox(height: AppSpacing.md),
-          Obx(() {
-            final double accValue = totalQuestions > 0 
-                ? score.value / totalQuestions 
-                : 0.0;
-            return LinearProgressIndicator(
-              value: accValue,
-              backgroundColor: Colors.grey.shade100,
-              color: AppColors.primary,
-              minHeight: 6,
-              borderRadius: BorderRadius.circular(4),
-            );
-          }),
+          LinearProgressIndicator(
+            value: totalQuestions > 0 ? correctAnswers / totalQuestions : 0.0,
+            backgroundColor: Colors.grey.shade100,
+            color: AppColors.primary,
+            minHeight: 6,
+            borderRadius: BorderRadius.circular(4),
+          ),
         ],
       ),
     );

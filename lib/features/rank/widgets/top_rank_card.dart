@@ -36,9 +36,7 @@ class TopRankCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         border: isFirst
-            ? const Border(
-                top: BorderSide(color: AppColors.primary, width: 4),
-              )
+            ? const Border(top: BorderSide(color: AppColors.primary, width: 4))
             : null,
         boxShadow: <BoxShadow>[
           BoxShadow(
@@ -69,7 +67,7 @@ class TopRankCard extends StatelessWidget {
               right: 20,
               top: 0,
               child: Text(
-                '0$rank',
+                rank.toString().padLeft(2, '0'),
                 style: AppTextStyles.statLabel.copyWith(
                   fontSize: 14,
                   fontWeight: FontWeight.w400,
@@ -90,34 +88,52 @@ class TopRankCard extends StatelessWidget {
                   style: isFirst
                       ? AppTextStyles.statValue.copyWith(fontSize: 15)
                       : AppTextStyles.subtitleMuted.copyWith(
-                          fontSize: 13, color: AppColors.textMuted),
+                          fontSize: 13,
+                          color: AppColors.textMuted,
+                        ),
                 ),
                 const SizedBox(height: 12),
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
                     if (isFirst)
-                      const Icon(Icons.check_circle_outline,
-                          size: 14, color: AppColors.textMuted),
+                      const Icon(
+                        Icons.check_circle_outline,
+                        size: 14,
+                        color: AppColors.textMuted,
+                      ),
                     if (isFirst) const SizedBox(width: 4),
-                    Text('$accuracy ACCURACY',
-                        style: AppTextStyles.statLabel.copyWith(
-                            fontSize: isFirst ? 10 : 9, letterSpacing: 1.0)),
+                    Text(
+                      '$accuracy ACCURACY',
+                      style: AppTextStyles.statLabel.copyWith(
+                        fontSize: isFirst ? 10 : 9,
+                        letterSpacing: 1.0,
+                      ),
+                    ),
                     const SizedBox(width: 16),
                     if (isFirst)
-                      const Icon(Icons.schedule,
-                          size: 14, color: AppColors.textMuted),
+                      const Icon(
+                        Icons.schedule,
+                        size: 14,
+                        color: AppColors.textMuted,
+                      ),
                     if (isFirst) const SizedBox(width: 4),
-                    Text('$avgTime AVG',
-                        style: AppTextStyles.statLabel.copyWith(
-                            fontSize: isFirst ? 10 : 9, letterSpacing: 1.0)),
+                    Text(
+                      '$avgTime AVG',
+                      style: AppTextStyles.statLabel.copyWith(
+                        fontSize: isFirst ? 10 : 9,
+                        letterSpacing: 1.0,
+                      ),
+                    ),
                   ],
                 ),
                 if (badgeText != null) ...<Widget>[
                   const SizedBox(height: 16),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.primary.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(16),

@@ -18,9 +18,10 @@ class ResultPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final Map<String, dynamic> args =
         Get.arguments as Map<String, dynamic>? ?? {};
-    final int scoreValue = args['score'] as int? ?? 0;
+    final int earnedPointsValue = args['score'] as int? ?? 0;
+    final int correctAnswers = args['correctAnswers'] as int? ?? 0;
     final int totalQuestions = args['totalQuestions'] as int? ?? 0;
-    final RxInt score = scoreValue.obs;
+    final RxInt earnedPoints = earnedPointsValue.obs;
 
     return PopScope<void>(
       canPop: false,
@@ -77,13 +78,14 @@ class ResultPage extends StatelessWidget {
                       const SizedBox(height: AppSpacing.xxxl),
 
                       FinalScoreCard(
-                        score: score,
+                        score: earnedPoints,
+                        correctAnswers: correctAnswers,
                         totalQuestions: totalQuestions,
                       ),
                       const SizedBox(height: AppSpacing.lg),
 
                       CorrectAnswersCard(
-                        score: score,
+                        correctAnswers: correctAnswers,
                         totalQuestions: totalQuestions,
                       ),
                       const SizedBox(height: 48),

@@ -181,6 +181,33 @@ class FirestoreService {
     return _getUniqueScores(limit: limit);
   }
 
+  /// Returns leaderboard display data, the signed-in user's score document,
+  /// authoritative global rank, and the total ranked user count in one fetch.
+  Future<Map<String, dynamic>> getLeaderboardData({
+    required String uid,
+    int displayLimit = 50,
+  }) async {
+    final List<Map<String, dynamic>> allScores = await _getUniqueScores();
+    final int userIndex = allScores.indexWhere(
+      (Map<String, dynamic> score) =>
+          score['uid'] == uid || score['docId'] == uid,
+    );
+    final int userRank = userIndex == -1 ? 0 : userIndex + 1;
+    final Map<String, dynamic>? userScoreDoc = userIndex == -1
+        ? null
+        : allScores[userIndex];
+    final List<Map<String, dynamic>> topScores = allScores.length > displayLimit
+        ? allScores.sublist(0, displayLimit)
+        : allScores;
+
+    return <String, dynamic>{
+      'topScores': topScores,
+      'userScoreDoc': userScoreDoc,
+      'userRank': userRank,
+      'totalRanked': allScores.length,
+    };
+  }
+
   /// Fetch the signed-in user's own score document directly.
   Future<Map<String, dynamic>?> getUserScoreDoc(String uid) async {
     final DocumentSnapshot<Map<String, dynamic>> snap = await _firestore
@@ -222,6 +249,7 @@ class FirestoreService {
     required String categoryName,
     required String categoryEmoji,
     required int score,
+    required int correctAnswers,
     required int totalQuestions,
   }) async {
     final DocumentReference<Map<String, dynamic>> ref = _firestore
@@ -231,21 +259,31 @@ class FirestoreService {
         .doc(categoryId.toString());
 
     final DocumentSnapshot<Map<String, dynamic>> snapshot = await ref.get();
-    final int currentMax = snapshot.exists
+    final int currentMaxScore = snapshot.exists
         ? (snapshot.data()?['maxScore'] as int? ?? 0)
+        : 0;
+    final int currentBestCorrectAnswers = snapshot.exists
+        ? (snapshot.data()?['bestCorrectAnswers'] as int? ??
+              ((snapshot.data()?['maxScore'] as int? ?? 0) <= totalQuestions
+                  ? (snapshot.data()?['maxScore'] as int? ?? 0)
+                  : 0))
         : 0;
     final int attempts = snapshot.exists
         ? (snapshot.data()?['totalAttempts'] as int? ?? 0)
         : 0;
 
-    final int newMax = score > currentMax ? score : currentMax;
-    final String badge = _calculateBadge(newMax, totalQuestions);
+    final int newMaxScore = score > currentMaxScore ? score : currentMaxScore;
+    final int newBestCorrectAnswers = correctAnswers > currentBestCorrectAnswers
+        ? correctAnswers
+        : currentBestCorrectAnswers;
+    final String badge = _calculateBadge(newBestCorrectAnswers, totalQuestions);
 
     await ref.set(<String, dynamic>{
       'categoryId': categoryId,
       'categoryName': categoryName,
       'categoryEmoji': categoryEmoji,
-      'maxScore': newMax,
+      'maxScore': newMaxScore,
+      'bestCorrectAnswers': newBestCorrectAnswers,
       'totalAttempts': attempts + 1,
       'lastPlayedAt': FieldValue.serverTimestamp(),
       'badge': badge,
@@ -499,8 +537,10 @@ class FirestoreService {
     try {
       final QuerySnapshot<Map<String, dynamic>> snapshot = await _firestore
           .collection('scores')
+          .orderBy('totalScore', descending: true)
           .limit(fetchLimit)
           .get();
+
       final List<Map<String, dynamic>> uniqueScores = _collectUniqueScores(
         snapshot.docs,
       )..sort(_compareScoreDocs);
@@ -555,16 +595,19 @@ class FirestoreService {
   List<Map<String, dynamic>> _collectUniqueScores(
     Iterable<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
   ) {
-    final Map<String, Map<String, dynamic>> userBestScores = <String, Map<String, dynamic>>{};
+    final Map<String, Map<String, dynamic>> userBestScores =
+        <String, Map<String, dynamic>>{};
 
     for (final QueryDocumentSnapshot<Map<String, dynamic>> doc in docs) {
       final Map<String, dynamic> normalized = _normalizeScoreDoc(
         doc.data(),
         fallbackUid: doc.id,
       );
-      
-      // Use email as primary key for uniqueness, fallback to uid or docId
-      String userKey = (normalized['email'] as String? ?? '').trim().toLowerCase();
+
+      // Use email as primary key for uniqueness, fallback to uid or docId.
+      String userKey = (normalized['email'] as String? ?? '')
+          .trim()
+          .toLowerCase();
       if (userKey.isEmpty) {
         userKey = (normalized['uid'] as String? ?? '').trim();
         if (userKey.isEmpty) {
@@ -574,7 +617,6 @@ class FirestoreService {
 
       final Map<String, dynamic>? existing = userBestScores[userKey];
       if (existing == null || _compareScoreDocs(normalized, existing) > 0) {
-        // This is a new user or a better score for existing user
         userBestScores[userKey] = normalized;
       }
     }
@@ -583,7 +625,6 @@ class FirestoreService {
   }
 
   int _compareScoreDocs(Map<String, dynamic> a, Map<String, dynamic> b) {
-    // Primary sort: totalScore (highest first)
     final int aScore = _readInt(a['totalScore']) ?? 0;
     final int bScore = _readInt(b['totalScore']) ?? 0;
     final int scoreCompare = bScore.compareTo(aScore);
@@ -591,15 +632,17 @@ class FirestoreService {
       return scoreCompare;
     }
 
-    // Tie-breaker 1: avgAccuracy (highest first)
-    final double aAccuracy = a['avgAccuracy'] is num ? (a['avgAccuracy'] as num).toDouble() : 0.0;
-    final double bAccuracy = b['avgAccuracy'] is num ? (b['avgAccuracy'] as num).toDouble() : 0.0;
+    final double aAccuracy = a['avgAccuracy'] is num
+        ? (a['avgAccuracy'] as num).toDouble()
+        : 0.0;
+    final double bAccuracy = b['avgAccuracy'] is num
+        ? (b['avgAccuracy'] as num).toDouble()
+        : 0.0;
     final int accuracyCompare = bAccuracy.compareTo(aAccuracy);
     if (accuracyCompare != 0) {
       return accuracyCompare;
     }
 
-    // Tie-breaker 2: totalAttempts (fewer attempts is better - shows efficiency)
     final int aAttempts = _readInt(a['totalAttempts']) ?? 0;
     final int bAttempts = _readInt(b['totalAttempts']) ?? 0;
     final int attemptsCompare = aAttempts.compareTo(bAttempts);
@@ -607,7 +650,6 @@ class FirestoreService {
       return attemptsCompare;
     }
 
-    // Final tie-breaker: email/uid for consistent ordering
     final String aEmail = (a['email'] as String? ?? '').trim().toLowerCase();
     final String bEmail = (b['email'] as String? ?? '').trim().toLowerCase();
     if (aEmail.isNotEmpty && bEmail.isNotEmpty) {
