@@ -10,7 +10,6 @@ class HistoryController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxString errorMessage = ''.obs;
 
-  /// Authoritative stats from the user-stats document (not the capped list).
   final RxInt totalPlayedStat = 0.obs;
   final RxInt avgAccuracyStat = 0.obs;
 
@@ -36,7 +35,6 @@ class HistoryController extends GetxController {
       final String? uid = _authService.currentUser?.uid;
       if (uid == null) {
         if (gen == _loadGen) {
-          isLoading.value = false;
           errorMessage.value = 'Not logged in';
         }
         return;
@@ -48,6 +46,7 @@ class HistoryController extends GetxController {
       ]);
 
       if (gen != _loadGen) return;
+
       quizHistory.assignAll(results[0] as List<Map<String, dynamic>>);
 
       final Map<String, dynamic> stats = results[1] as Map<String, dynamic>;
@@ -64,10 +63,8 @@ class HistoryController extends GetxController {
     }
   }
 
-  Future<void> refreshHistory() => loadHistory();
-
-  /// After a quiz, read from the server so the new history row appears immediately.
-  Future<void> refreshHistoryAfterQuiz() => loadHistory(forceServer: true);
+  /// Called from ResultPage after quiz — bypasses cache.
+  Future<void> refreshHistory() => loadHistory(forceServer: true);
 
   void clearHistory() {
     quizHistory.clear();

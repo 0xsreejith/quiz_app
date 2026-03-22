@@ -11,12 +11,11 @@ class LeaderboardController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxnString errorMessage = RxnString();
 
-  /// The signed-in user's own leaderboard document.
   final Rxn<Map<String, dynamic>> userScoreDoc = Rxn<Map<String, dynamic>>();
-
-  /// The user's authoritative global rank (not limited to top-50).
   final RxInt userGlobalRank = 0.obs;
   final RxInt totalRankedUsers = 0.obs;
+
+  int _loadGen = 0;
 
   @override
   void onInit() {
@@ -25,40 +24,47 @@ class LeaderboardController extends GetxController {
   }
 
   Future<void> fetchLeaderboard({bool forceServer = false}) async {
+    final int gen = ++_loadGen;
     isLoading.value = true;
     errorMessage.value = null;
     try {
       final String? uid = _authService.currentUser?.uid;
 
       if (uid != null) {
-        final Map<String, dynamic> bundle =
-            await _firestoreService.getLeaderboardBundle(
-          uid: uid,
-          displayLimit: 50,
-          forceServer: forceServer,
-        );
+        final Map<String, dynamic> bundle = await _firestoreService
+            .getLeaderboardBundle(
+              uid: uid,
+              displayLimit: 50,
+              forceServer: forceServer,
+            );
+        if (gen != _loadGen) return;
         scores.assignAll(bundle['topScores'] as List<Map<String, dynamic>>);
         userScoreDoc.value = bundle['userScoreDoc'] as Map<String, dynamic>?;
         userGlobalRank.value = bundle['userRank'] as int;
         totalRankedUsers.value = bundle['totalRanked'] as int;
       } else {
-        final List<Map<String, dynamic>> top =
-            await _firestoreService.getTopScores(limit: 50, forceServer: forceServer);
+        final List<Map<String, dynamic>> top = await _firestoreService
+            .getTopScores(limit: 50, forceServer: forceServer);
+        if (gen != _loadGen) return;
         scores.assignAll(top);
         totalRankedUsers.value = top.length;
         userScoreDoc.value = null;
         userGlobalRank.value = 0;
       }
     } on FirebaseException catch (error) {
-      errorMessage.value = _buildErrorMessage(error);
+      if (gen == _loadGen) {
+        errorMessage.value = _buildErrorMessage(error);
+      }
     } catch (_) {
-      errorMessage.value = 'Unable to load leaderboard data right now.';
+      if (gen == _loadGen) {
+        errorMessage.value = 'Unable to load leaderboard data right now.';
+      }
     } finally {
-      isLoading.value = false;
+      if (gen == _loadGen) {
+        isLoading.value = false;
+      }
     }
   }
-
-  Future<void> fetchLeaderboardAfterQuiz() => fetchLeaderboard(forceServer: true);
 
   String _buildErrorMessage(FirebaseException error) {
     switch (error.code) {

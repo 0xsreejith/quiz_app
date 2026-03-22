@@ -68,11 +68,13 @@ class ProfileController extends GetxController {
       );
 
       final List<Map<String, dynamic>> catScores = await _firestoreService
-          .getCategoryScores(uid);
+          .getCategoryScores(uid, forceServer: forceServer);
       if (gen != _loadGen) return;
       categoryScores.assignAll(catScores);
     } catch (e) {
-      debugPrint('Error loading profile data: $e');
+      if (gen == _loadGen) {
+        debugPrint('Error loading profile data: $e');
+      }
     } finally {
       if (gen == _loadGen) {
         isLoading.value = false;
@@ -81,5 +83,6 @@ class ProfileController extends GetxController {
     }
   }
 
+  /// Called from ResultPage after quiz — bypasses cache.
   Future<void> refreshAfterQuiz() => loadProfileData(forceServer: true);
 }

@@ -3,16 +3,8 @@ import 'package:get/get.dart';
 import 'package:quiz_app/core/constants/app_colors.dart';
 import 'package:quiz_app/core/constants/app_spacing.dart';
 import 'package:quiz_app/core/widgets/common_app_bar.dart';
-import 'package:quiz_app/features/history/bindings/history_binding.dart';
-import 'package:quiz_app/features/history/controllers/history_controller.dart';
-import 'package:quiz_app/features/home/bindings/home_binding.dart';
-import 'package:quiz_app/features/home/controllers/home_controller.dart';
-import 'package:quiz_app/features/profile/bindings/profile_binding.dart';
-import 'package:quiz_app/features/profile/controllers/profile_controller.dart';
 import 'package:quiz_app/features/quiz/widgets/correct_answers_card.dart';
 import 'package:quiz_app/features/quiz/widgets/final_score_card.dart';
-import 'package:quiz_app/features/rank/bindings/rank_binding.dart';
-import 'package:quiz_app/features/rank/controllers/leaderboard_controller.dart';
 import 'package:quiz_app/routes/app_routes.dart';
 
 class ResultPage extends StatefulWidget {
@@ -44,65 +36,19 @@ class _ResultPageState extends State<ResultPage> {
     _rxCorrectAnswers = _correctAnswers.obs;
   }
 
-  void _ensureTabControllersRegistered() {
-    if (!Get.isRegistered<HomeController>()) {
-      HomeBinding().dependencies();
-    }
-    if (!Get.isRegistered<HistoryController>()) {
-      HistoryBinding().dependencies();
-    }
-    if (!Get.isRegistered<ProfileController>()) {
-      ProfileBinding().dependencies();
-    }
-    if (!Get.isRegistered<LeaderboardController>()) {
-      RankBinding().dependencies();
-    }
-  }
-
   // ── Navigation ─────────────────────────────────────────────────────────────
 
   Future<void> _goHome() async {
     if (_isGoingHome) return;
     setState(() => _isGoingHome = true);
 
-    // Navigate first: Get.offAllNamed disposes the old shell and its
-    // controllers. Refreshing *before* navigation updated instances that are
-    // thrown away, so Home / History / Profile / Rank never showed new points.
-    Get.offAllNamed(AppRoutes.appShell);
-
-    // Wait for the new AppShell route + lazy controllers to exist, then
-    // refresh the NEW instances (and prefer server reads to avoid stale cache).
-    await Future<void>.delayed(const Duration(milliseconds: 200));
-    _ensureTabControllersRegistered();
-
-    final List<Future<void>> jobs = <Future<void>>[];
-
-    if (Get.isRegistered<HomeController>()) {
-      jobs.add(
-        Get.find<HomeController>().refreshAfterQuiz().catchError((_) {}),
-      );
-    }
-    if (Get.isRegistered<HistoryController>()) {
-      jobs.add(
-        Get.find<HistoryController>().refreshHistoryAfterQuiz().catchError(
-              (_) {},
-            ),
-      );
-    }
-    if (Get.isRegistered<ProfileController>()) {
-      jobs.add(
-        Get.find<ProfileController>().refreshAfterQuiz().catchError((_) {}),
-      );
-    }
-    if (Get.isRegistered<LeaderboardController>()) {
-      jobs.add(
-        Get.find<LeaderboardController>()
-            .fetchLeaderboardAfterQuiz()
-            .catchError((_) {}),
-      );
-    }
-
-    await Future.wait(jobs);
+    // Let the NEW AppShellController trigger refreshes from inside the
+    // newly created shell. This avoids relying on async work started from a
+    // route that is being disposed during Get.offAllNamed().
+    Get.offAllNamed(
+      AppRoutes.appShell,
+      arguments: <String, dynamic>{'refreshAfterQuiz': true},
+    );
   }
 
   // ── Build ──────────────────────────────────────────────────────────────────
@@ -111,9 +57,9 @@ class _ResultPageState extends State<ResultPage> {
   Widget build(BuildContext context) {
     return PopScope<void>(
       canPop: false,
-      onPopInvokedWithResult: (bool didPop, void result) async {
+      onPopInvokedWithResult: (bool didPop, void result) {
         if (didPop) return;
-        await _goHome();
+        _goHome();
       },
       child: Scaffold(
         backgroundColor: const Color(0xFFF9FAFB),
@@ -196,9 +142,7 @@ class _ResultPageState extends State<ResultPage> {
           backgroundColor: AppColors.primary,
           disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.6),
           padding: const EdgeInsets.symmetric(vertical: 18),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           elevation: 0,
         ),
         child: _isGoingHome
