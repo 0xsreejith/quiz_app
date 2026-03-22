@@ -36,7 +36,8 @@ class HistoryPage extends GetView<HistoryController> {
                     child: Padding(
                       padding: EdgeInsets.all(32),
                       child: CircularProgressIndicator(
-                          color: AppColors.primary),
+                        color: AppColors.primary,
+                      ),
                     ),
                   );
                 }
@@ -47,12 +48,17 @@ class HistoryPage extends GetView<HistoryController> {
                       padding: const EdgeInsets.all(32),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.error_outline,
-                              color: AppColors.textMuted, size: 48),
+                        children: <Widget>[
+                          const Icon(
+                            Icons.error_outline,
+                            color: AppColors.textMuted,
+                            size: 48,
+                          ),
                           const SizedBox(height: 16),
-                          const Text('Unable to load data',
-                              style: AppTextStyles.cardTitle),
+                          const Text(
+                            'Unable to load data',
+                            style: AppTextStyles.cardTitle,
+                          ),
                           const SizedBox(height: 8),
                           TextButton(
                             onPressed: controller.refreshHistory,
@@ -71,16 +77,23 @@ class HistoryPage extends GetView<HistoryController> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: const [
-                          Icon(Icons.inbox_outlined,
-                              color: AppColors.textMuted, size: 48),
+                          Icon(
+                            Icons.inbox_outlined,
+                            color: AppColors.textMuted,
+                            size: 48,
+                          ),
                           SizedBox(height: 16),
-                          Text('No attempts yet',
-                              style: AppTextStyles.cardTitle),
+                          Text(
+                            'No attempts yet',
+                            style: AppTextStyles.cardTitle,
+                          ),
                           SizedBox(height: 8),
                           Text(
                             'Complete a quiz to see your results here',
                             style: TextStyle(
-                                color: AppColors.textMuted, fontSize: 13),
+                              color: AppColors.textMuted,
+                              fontSize: 13,
+                            ),
                             textAlign: TextAlign.center,
                           ),
                         ],
@@ -90,8 +103,9 @@ class HistoryPage extends GetView<HistoryController> {
                 }
 
                 return Column(
-                  children: controller.quizHistory
-                      .map((Map<String, dynamic> history) {
+                  children: controller.quizHistory.map((
+                    Map<String, dynamic> history,
+                  ) {
                     final int accuracy = history['accuracy'] as int? ?? 0;
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 16),
@@ -102,24 +116,24 @@ class HistoryPage extends GetView<HistoryController> {
                         level: accuracy >= 90
                             ? 'EXPERT'
                             : accuracy >= 70
-                                ? 'INTERMEDIATE'
-                                : 'BEGINNER',
+                            ? 'INTERMEDIATE'
+                            : 'BEGINNER',
                         levelColor: accuracy >= 90
                             ? AppColors.emerald
                             : accuracy >= 70
-                                ? AppColors.indigoMid
-                                : AppColors.blueBright,
+                            ? AppColors.indigoMid
+                            : AppColors.blueBright,
                         levelBgColor: accuracy >= 90
                             ? AppColors.chipBgGreen
                             : accuracy >= 70
-                                ? AppColors.chipBgBlue
-                                : AppColors.chipBgLightBlue,
+                            ? AppColors.chipBgBlue
+                            : AppColors.chipBgLightBlue,
                         date: _formatDate(history['playedAt']),
                         title:
                             '${history['categoryEmoji'] ?? '📝'} ${history['categoryName'] ?? 'Quiz'}',
                         subtitle:
                             '${history['correctAnswers'] ?? 0}/${history['totalQuestions'] ?? 0} Correct',
-                        score: '${history['score'] ?? 0}',
+                        score: '${history['score'] ?? 0} pts',
                         status: 'SYNCED',
                         statusColor: AppColors.emerald,
                         statusIcon: Icons.check_circle,
@@ -149,8 +163,18 @@ class HistoryPage extends GetView<HistoryController> {
     if (timestamp is Timestamp) {
       final DateTime dt = timestamp.toDate();
       const List<String> months = <String>[
-        'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
-        'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC',
+        'JAN',
+        'FEB',
+        'MAR',
+        'APR',
+        'MAY',
+        'JUN',
+        'JUL',
+        'AUG',
+        'SEP',
+        'OCT',
+        'NOV',
+        'DEC',
       ];
       return '${months[dt.month - 1]} ${dt.day}, ${dt.year} • ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
     }
@@ -176,8 +200,10 @@ class HistoryPage extends GetView<HistoryController> {
               child: Row(
                 children: [
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(4),
@@ -191,13 +217,16 @@ class HistoryPage extends GetView<HistoryController> {
                     ),
                     child: Text(
                       'ALL',
-                      style: AppTextStyles.tinyBold(color: AppColors.darkNavy)
-                          .copyWith(fontSize: 12, fontWeight: FontWeight.w700),
+                      style: AppTextStyles.tinyBold(
+                        color: AppColors.darkNavy,
+                      ).copyWith(fontSize: 12, fontWeight: FontWeight.w700),
                     ),
                   ),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     child: Text(
                       'SYNCED',
                       style: TextStyle(
@@ -212,8 +241,7 @@ class HistoryPage extends GetView<HistoryController> {
             ),
             const Spacer(),
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
                 color: AppColors.deepNavy,
                 borderRadius: BorderRadius.circular(4),
@@ -255,8 +283,10 @@ class HistoryPage extends GetView<HistoryController> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text('${controller.avgAccuracyStat.value}%',
-                  style: AppTextStyles.heroNumber(color: AppColors.darkNavy)),
+              Text(
+                '${controller.avgAccuracyStat.value}%',
+                style: AppTextStyles.heroNumber(color: AppColors.darkNavy),
+              ),
               const Spacer(),
               Container(
                 width: 48,
@@ -265,8 +295,11 @@ class HistoryPage extends GetView<HistoryController> {
                   color: Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(Icons.bar_chart,
-                    color: Colors.grey.shade300, size: 32),
+                child: Icon(
+                  Icons.bar_chart,
+                  color: Colors.grey.shade300,
+                  size: 32,
+                ),
               ),
             ],
           ),
@@ -282,7 +315,9 @@ class HistoryPage extends GetView<HistoryController> {
                 ),
               ),
               FractionallySizedBox(
-                widthFactor: controller.avgAccuracyStat.value / 100,
+                widthFactor: (controller.avgAccuracyStat.value / 100)
+                    .clamp(0.0, 1.0)
+                    .toDouble(),
                 child: Container(
                   height: 4,
                   decoration: BoxDecoration(
@@ -308,11 +343,15 @@ class HistoryPage extends GetView<HistoryController> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('QUIZZES COMPLETED',
-              style: AppTextStyles.miniLabel(color: Colors.white70)),
+          Text(
+            'QUIZZES COMPLETED',
+            style: AppTextStyles.miniLabel(color: Colors.white70),
+          ),
           AppSpacing.verticalLg,
-          Text('${controller.totalPlayedStat.value}',
-              style: AppTextStyles.heroNumber(color: Colors.white)),
+          Text(
+            '${controller.totalPlayedStat.value}',
+            style: AppTextStyles.heroNumber(color: Colors.white),
+          ),
           AppSpacing.verticalXxl,
           Text(
             'PRODUCTION GRADE PERFORMANCE MONITORING ACTIVE',

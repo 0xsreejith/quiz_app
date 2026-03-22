@@ -13,13 +13,16 @@ import 'package:quiz_app/features/settings/widgets/settings_page_header.dart';
 import 'package:quiz_app/features/settings/widgets/settings_section_card.dart';
 import 'package:quiz_app/features/settings/widgets/settings_toggle_row.dart';
 
-class SettingsPage extends StatelessWidget {
+/// Uses GetView so GetX manages the controller lifecycle — no manual
+/// Get.put() inside build(), which caused re-registration on every rebuild.
+class SettingsPage extends GetView<SettingsController> {
   const SettingsPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(SettingsController());
-    final authController = Get.find<AuthController>();
+    // AuthController is registered by AppShellBinding (fenix: true), so it
+    // is always available when SettingsPage is pushed from the shell.
+    final AuthController authController = Get.find<AuthController>();
 
     return Scaffold(
       backgroundColor: AppColors.scaffoldBg,
@@ -39,7 +42,9 @@ class SettingsPage extends StatelessWidget {
                     const SettingsPageHeader(),
                     const SizedBox(height: AppSpacing.xxxl),
                     SettingsIdentitySection(
-                      displayName: authController.currentUserEmail.split('@').first,
+                      displayName: authController.currentUserEmail
+                          .split('@')
+                          .first,
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     _buildInterfaceSection(controller),
@@ -62,7 +67,6 @@ class SettingsPage extends StatelessWidget {
     );
   }
 
-  /// Interface Preferences: Light/Dark mode options.
   Widget _buildInterfaceSection(SettingsController controller) {
     return SettingsSectionCard(
       icon: Icons.dark_mode_outlined,
@@ -91,7 +95,6 @@ class SettingsPage extends StatelessWidget {
     );
   }
 
-  /// Push Notifications: toggle rows.
   Widget _buildNotificationsSection(SettingsController controller) {
     return SettingsSectionCard(
       icon: Icons.notifications_outlined,
@@ -107,7 +110,7 @@ class SettingsPage extends StatelessWidget {
               title: 'Quiz Reminders',
               subtitle: 'Get notified when new daily challenges are live.',
               value: controller.quizReminders.value,
-              onChanged: (v) => controller.quizReminders.value = v,
+              onChanged: (bool v) => controller.quizReminders.value = v,
             ),
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
@@ -117,7 +120,7 @@ class SettingsPage extends StatelessWidget {
               title: 'Leaderboard Shifts',
               subtitle: 'Alerts when someone overtakes your rank.',
               value: controller.leaderboardShifts.value,
-              onChanged: (v) => controller.leaderboardShifts.value = v,
+              onChanged: (bool v) => controller.leaderboardShifts.value = v,
             ),
           ],
         ),
@@ -125,7 +128,6 @@ class SettingsPage extends StatelessWidget {
     );
   }
 
-  /// System & Data: reset and danger actions.
   Widget _buildSystemDataSection() {
     return SettingsSectionCard(
       icon: Icons.dns_outlined,
@@ -139,9 +141,9 @@ class SettingsPage extends StatelessWidget {
             child: Divider(height: 1, color: AppColors.divider),
           ),
           SettingsActionRow(
-            title: 'Reset Onboarding',
-            subtitle: 'Replay the introductory tutorial and tips.',
-            trailingIcon: Icons.refresh_outlined,
+            title: 'Privacy Policy',
+            subtitle: 'Review how your data is handled and protected.',
+            trailingIcon: Icons.privacy_tip_outlined,
             onTap: () {},
           ),
           const Padding(
@@ -149,11 +151,9 @@ class SettingsPage extends StatelessWidget {
             child: Divider(height: 1, color: AppColors.divider),
           ),
           SettingsActionRow(
-            title: 'Clear Quiz History',
-            subtitle: 'Permanently deletes all past quiz results.',
-            trailingIcon: Icons.delete_outline_rounded,
-            titleColor: AppColors.logoutRed,
-            trailingColor: AppColors.logoutRed,
+            title: 'Terms of Service',
+            subtitle: 'Read the platform rules and usage terms.',
+            trailingIcon: Icons.description_outlined,
             onTap: () {},
           ),
         ],

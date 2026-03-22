@@ -5,6 +5,7 @@ import 'package:quiz_app/features/categories/bindings/categories_binding.dart';
 import 'package:quiz_app/features/categories/views/categories_page.dart';
 import 'package:quiz_app/features/live/views/live_page.dart';
 import 'package:quiz_app/features/profile/views/profile_page.dart';
+import 'package:quiz_app/features/settings/controllers/settings_controller.dart';
 import 'package:quiz_app/features/settings/views/settings_page.dart';
 import 'package:quiz_app/features/quiz/bindings/quiz_binding.dart';
 import 'package:quiz_app/features/quiz/views/quiz_view.dart';
@@ -53,6 +54,11 @@ class AppPages {
     GetPage<SettingsPage>(
       name: AppRoutes.settings,
       page: () => const SettingsPage(),
+      // Inline binding: registers SettingsController once at route entry,
+      // not on every build() call. This fixes the Get.put()-in-build() bug.
+      binding: BindingsBuilder<void>(
+        () => Get.lazyPut<SettingsController>(SettingsController.new),
+      ),
     ),
   ];
 }

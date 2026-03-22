@@ -17,8 +17,8 @@ class HistoryController extends GetxController {
   int get bestScore => quizHistory.isEmpty
       ? 0
       : quizHistory
-          .map((Map<String, dynamic> h) => h['score'] as int? ?? 0)
-          .reduce((int a, int b) => a > b ? a : b);
+            .map((Map<String, dynamic> h) => h['score'] as int? ?? 0)
+            .reduce((int a, int b) => a > b ? a : b);
 
   @override
   void onInit() {
@@ -45,8 +45,8 @@ class HistoryController extends GetxController {
       quizHistory.assignAll(results[0] as List<Map<String, dynamic>>);
 
       final Map<String, dynamic> stats = results[1] as Map<String, dynamic>;
-      totalPlayedStat.value = stats['totalPlayed'] as int? ?? 0;
-      avgAccuracyStat.value = stats['avgAccuracy'] as int? ?? 0;
+      totalPlayedStat.value = (stats['totalPlayed'] as num?)?.toInt() ?? 0;
+      avgAccuracyStat.value = (stats['avgAccuracy'] as num?)?.round() ?? 0;
     } catch (e) {
       errorMessage.value = e.toString();
     } finally {

@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 import 'package:quiz_app/core/services/auth_service.dart';
 import 'package:quiz_app/core/services/firestore_service.dart';
@@ -17,6 +18,7 @@ class HomeController extends FullLifeCycleController with FullLifeCycleMixin {
 
   final RxInt userBestScore = 0.obs;
   final RxInt userTotalPlayed = 0.obs;
+  final RxInt userAvgAccuracy = 0.obs;
   final RxString userGlobalBadge = 'unranked'.obs;
 
   List<CategoryModel> get filteredCategories {
@@ -38,8 +40,10 @@ class HomeController extends FullLifeCycleController with FullLifeCycleMixin {
     errorMessage.value = '';
     try {
       await Future.wait(<Future<void>>[_loadTopPerformers(), _loadUserStats()]);
-    } catch (e) {
-      errorMessage.value = e.toString();
+    } on FirebaseException catch (error) {
+      errorMessage.value = _buildErrorMessage(error);
+    } catch (_) {
+      errorMessage.value = 'Unable to load home data right now.';
     } finally {
       isLoading.value = false;
     }
@@ -53,6 +57,8 @@ class HomeController extends FullLifeCycleController with FullLifeCycleMixin {
 
   Future<void> refreshAfterQuiz() async {
     try {
+      // Add a small delay to ensure Firestore operations are completed
+      await Future.delayed(const Duration(milliseconds: 500));
       await Future.wait<void>(<Future<void>>[
         _loadUserStats(),
         _loadTopPerformers(),
@@ -112,8 +118,9 @@ class HomeController extends FullLifeCycleController with FullLifeCycleMixin {
     final Map<String, dynamic> stats = await _firestoreService.getUserStats(
       uid,
     );
-    userBestScore.value = stats['totalScore'] as int? ?? 0;
-    userTotalPlayed.value = stats['totalPlayed'] as int? ?? 0;
+    userBestScore.value = (stats['totalScore'] as num?)?.toInt() ?? 0;
+    userTotalPlayed.value = (stats['totalPlayed'] as num?)?.toInt() ?? 0;
+    userAvgAccuracy.value = (stats['avgAccuracy'] as num?)?.round() ?? 0;
     userGlobalBadge.value = stats['globalBadge'] as String? ?? 'unranked';
   }
 
@@ -147,5 +154,16 @@ class HomeController extends FullLifeCycleController with FullLifeCycleMixin {
 
   void navigateToCategories() {
     Get.toNamed(AppRoutes.categories);
+  }
+
+  String _buildErrorMessage(FirebaseException error) {
+    switch (error.code) {
+      case 'permission-denied':
+        return 'Home data is unavailable for this account right now.';
+      case 'unavailable':
+        return 'The service is temporarily unavailable. Try again shortly.';
+      default:
+        return 'Unable to load home data right now.';
+    }
   }
 }

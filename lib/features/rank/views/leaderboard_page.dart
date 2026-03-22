@@ -42,6 +42,15 @@ class LeaderboardPage extends GetView<LeaderboardController> {
                     style: AppTextStyles.cardTitle,
                   ),
                   const SizedBox(height: 8),
+                  Text(
+                    controller.errorMessage.value ?? 'Please try again.',
+                    style: const TextStyle(
+                      color: AppColors.textMuted,
+                      fontSize: 13,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
                   TextButton(
                     onPressed: controller.fetchLeaderboard,
                     child: const Text('Retry'),
@@ -107,8 +116,9 @@ class LeaderboardPage extends GetView<LeaderboardController> {
                       ? displayName
                       : email.split('@').first;
                   final int scoreVal = s['totalScore'] as int? ?? 0;
-                  final int accuracyVal =
-                      ((s['avgAccuracy'] as num?)?.round() ?? 0);
+                  final double rawAcc =
+                      (s['avgAccuracy'] as num?)?.toDouble() ?? 0.0;
+                  final int accuracyVal = rawAcc.round();
                   final int avgCompletionMs =
                       (s['avgCompletionMs'] as num?)?.toInt() ?? 0;
                   final List<Color> bgColors = <Color>[
@@ -120,7 +130,7 @@ class LeaderboardPage extends GetView<LeaderboardController> {
                     rank: i + 1,
                     name: name,
                     score: _formatScore(scoreVal),
-                    accuracy: '$accuracyVal%',
+                    accuracy: rawAcc > 0 ? '$accuracyVal%' : '—',
                     avgTime: _formatAvgTime(avgCompletionMs),
                     avatarWidget: _buildInitialsAvatar(
                       name.isNotEmpty ? name[0].toUpperCase() : 'U',
@@ -182,8 +192,9 @@ class LeaderboardPage extends GetView<LeaderboardController> {
                         ? displayName
                         : email.split('@').first;
                     final int scoreVal = s['totalScore'] as int? ?? 0;
-                    final int accuracyVal =
-                        ((s['avgAccuracy'] as num?)?.round() ?? 0);
+                    final double rawAccRest =
+                        (s['avgAccuracy'] as num?)?.toDouble() ?? 0.0;
+                    final int accuracyVal = rawAccRest.round();
                     final String rankStr = (i + 4).toString().padLeft(2, '0');
                     final String badgeKey =
                         s['globalBadge'] as String? ?? 'unranked';
@@ -192,7 +203,7 @@ class LeaderboardPage extends GetView<LeaderboardController> {
                     return RankListTile(
                       rank: rankStr,
                       name: name,
-                      accuracy: '$accuracyVal%',
+                      accuracy: rawAccRest > 0 ? '$accuracyVal%' : '—',
                       score: _formatScore(scoreVal),
                       badgeEmoji: badgeMeta?['emoji'] as String?,
                       avatarWidget: _buildInitialsAvatar(
@@ -326,7 +337,7 @@ class LeaderboardPage extends GetView<LeaderboardController> {
         YourPositionCard(
           rank: _ordinal(rank),
           name: name.isNotEmpty ? name : 'You',
-          subtitle: subtitle,
+          subtitle: subtitle.trim(),
           score: '$scoreVal PTS',
           trend: '',
           avatarWidget: _buildInitialsAvatar(

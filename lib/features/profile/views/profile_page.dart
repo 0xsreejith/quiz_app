@@ -137,7 +137,7 @@ class ProfilePage extends GetView<ProfileController> {
               );
             }),
             AppSpacing.verticalXxl,
-            _buildCategoryBadgesSection(),
+            _buildBadgesSections(),
             AppSpacing.verticalXxl,
             _buildAccountArchitectureSection(),
             AppSpacing.verticalLg,
@@ -147,7 +147,7 @@ class ProfilePage extends GetView<ProfileController> {
     );
   }
 
-  Widget _buildCategoryBadgesSection() {
+  Widget _buildBadgesSections() {
     return Obx(() {
       if (controller.isLoadingBadges.value) {
         return const SizedBox.shrink();
@@ -157,59 +157,83 @@ class ProfilePage extends GetView<ProfileController> {
           .categoryScores
           .where((Map<String, dynamic> score) => score['badge'] != 'none')
           .toList();
-      final List<String> earnedBadges = controller.earnedBadges
+      final List<String> earnedGlobalBadges = controller.earnedBadges
           .where((String badgeKey) => BadgeDefinitions.getAny(badgeKey) != null)
           .toList();
 
-      if (badgesWithBadge.isEmpty && earnedBadges.isEmpty) {
+      if (badgesWithBadge.isEmpty && earnedGlobalBadges.isEmpty) {
         return const SizedBox.shrink();
       }
 
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          if (earnedBadges.isNotEmpty) ...<Widget>[
-            const SectionHeader(
-              title: 'GLOBAL BADGES',
-              padding: EdgeInsets.only(left: 4, bottom: 14),
-            ),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: earnedBadges.map((String badgeKey) {
-                final Map<String, dynamic> meta = BadgeDefinitions.getAny(
-                  badgeKey,
-                )!;
-                return _EarnedBadgeChip(
-                  emoji: meta['emoji'] as String? ?? '',
-                  label: meta['label'] as String? ?? badgeKey,
-                  color: Color(meta['color'] as int? ?? 0xFFBDC3C7),
-                );
-              }).toList(),
-            ),
-          ],
-          if (earnedBadges.isNotEmpty && badgesWithBadge.isNotEmpty)
+          _buildGlobalBadgesSection(earnedGlobalBadges),
+          if (earnedGlobalBadges.isNotEmpty && badgesWithBadge.isNotEmpty)
             AppSpacing.verticalXl,
-          if (badgesWithBadge.isNotEmpty) ...<Widget>[
-            const SectionHeader(
-              title: 'CATEGORY BADGES',
-              padding: EdgeInsets.only(left: 4, bottom: 14),
-            ),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: badgesWithBadge.map((Map<String, dynamic> score) {
-                return _BadgeChip(
-                  emoji: score['categoryEmoji'] as String? ?? '',
-                  categoryName: score['categoryName'] as String? ?? '',
-                  badge: score['badge'] as String? ?? 'none',
-                );
-              }).toList(),
-            ),
-          ],
+          _buildCategoryBadgesSection(badgesWithBadge),
         ],
       );
     });
+  }
+
+  Widget _buildGlobalBadgesSection(List<String> earnedGlobalBadges) {
+    if (earnedGlobalBadges.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        const SectionHeader(
+          title: 'GLOBAL BADGES',
+          padding: EdgeInsets.only(left: 4, bottom: 14),
+        ),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: earnedGlobalBadges.map((String badgeKey) {
+            final Map<String, dynamic> meta = BadgeDefinitions.getAny(
+              badgeKey,
+            )!;
+            return _EarnedBadgeChip(
+              emoji: meta['emoji'] as String? ?? '',
+              label: meta['label'] as String? ?? badgeKey,
+              color: Color(meta['color'] as int? ?? 0xFFBDC3C7),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCategoryBadgesSection(
+    List<Map<String, dynamic>> badgesWithBadge,
+  ) {
+    if (badgesWithBadge.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        const SectionHeader(
+          title: 'CATEGORY BADGES',
+          padding: EdgeInsets.only(left: 4, bottom: 14),
+        ),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: badgesWithBadge.map((Map<String, dynamic> score) {
+            return _BadgeChip(
+              emoji: score['categoryEmoji'] as String? ?? '',
+              categoryName: score['categoryName'] as String? ?? '',
+              badge: score['badge'] as String? ?? 'none',
+            );
+          }).toList(),
+        ),
+      ],
+    );
   }
 
   Widget _buildAccountArchitectureSection() {
