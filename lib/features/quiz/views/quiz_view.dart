@@ -4,6 +4,7 @@ import 'package:quiz_app/core/constants/app_colors.dart';
 import 'package:quiz_app/core/constants/app_spacing.dart';
 import 'package:quiz_app/core/widgets/common_app_bar.dart';
 import 'package:quiz_app/features/quiz/controllers/quiz_controller.dart';
+import 'package:quiz_app/features/quiz/data/models/question_model.dart';
 import 'package:quiz_app/features/quiz/widgets/option_tile.dart';
 import 'package:quiz_app/features/quiz/widgets/quiz_bottom_bar.dart';
 import 'package:quiz_app/features/quiz/widgets/quiz_progress_header.dart';
@@ -29,15 +30,16 @@ class QuizView extends GetView<QuizController> {
         ),
         body: SafeArea(
           child: Obx(() {
+            // ── 1. Saving overlay (highest priority) ──────────────────
             if (controller.isFinishing.value) {
               return const Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
-                  children: [
+                  children: <Widget>[
                     CircularProgressIndicator(color: AppColors.primary),
                     SizedBox(height: 20),
                     Text(
-                      'Saving results...',
+                      'Saving results…',
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w500,
@@ -49,45 +51,53 @@ class QuizView extends GetView<QuizController> {
               );
             }
 
+            // ── 2. Loading questions ──────────────────────────────────
             if (controller.isLoading.value) {
-              return const Center(child: CircularProgressIndicator());
+              return const Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              );
             }
 
+            // ── 3. Error state ────────────────────────────────────────
             if (controller.errorMessage.value != null) {
               return _buildErrorState();
             }
 
+            // ── 4. No questions ───────────────────────────────────────
             if (controller.questions.isEmpty) {
               return const Center(child: Text('No questions available.'));
             }
 
-            final question = controller.currentQuestion;
+            // ── 5. Quiz content ───────────────────────────────────────
+            final QuestionModel question = controller.currentQuestion;
 
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
+              children: <Widget>[
                 Expanded(
                   child: SingleChildScrollView(
                     padding: AppSpacing.cardPaddingLarge,
                     child: AnimatedSwitcher(
                       duration: const Duration(milliseconds: 300),
-                      transitionBuilder:
-                          (Widget child, Animation<double> animation) {
-                            return FadeTransition(
-                              opacity: animation,
-                              child: SlideTransition(
-                                position: Tween<Offset>(
-                                  begin: const Offset(0.05, 0),
-                                  end: Offset.zero,
-                                ).animate(animation),
-                                child: child,
-                              ),
-                            );
-                          },
+                      transitionBuilder: (
+                        Widget child,
+                        Animation<double> animation,
+                      ) {
+                        return FadeTransition(
+                          opacity: animation,
+                          child: SlideTransition(
+                            position: Tween<Offset>(
+                              begin: const Offset(0.05, 0),
+                              end: Offset.zero,
+                            ).animate(animation),
+                            child: child,
+                          ),
+                        );
+                      },
                       child: Column(
                         key: ValueKey<int>(controller.currentIndex.value),
                         crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
+                        children: <Widget>[
                           QuizProgressHeader(controller: controller),
                           const SizedBox(height: 40),
                           Text(
@@ -100,12 +110,13 @@ class QuizView extends GetView<QuizController> {
                             ),
                           ),
                           const SizedBox(height: 40),
-                          ...question.options.asMap().entries.map((entry) {
+                          ...question.options.asMap().entries.map((
+                            MapEntry<int, String> entry,
+                          ) {
                             final int index = entry.key;
                             final String optionStr = entry.value;
-                            final String letter = String.fromCharCode(
-                              65 + index,
-                            );
+                            final String letter =
+                                String.fromCharCode(65 + index);
                             return Padding(
                               padding: const EdgeInsets.only(
                                 bottom: AppSpacing.lg,
@@ -120,7 +131,8 @@ class QuizView extends GetView<QuizController> {
                                     controller.hasAnswered.value &&
                                     question.isCorrectOption(optionStr),
                                 hasAnswered: controller.hasAnswered.value,
-                                onTap: () => controller.selectAnswer(optionStr),
+                                onTap: () =>
+                                    controller.selectAnswer(optionStr),
                               ),
                             );
                           }),
@@ -144,7 +156,7 @@ class QuizView extends GetView<QuizController> {
         padding: AppSpacing.cardPaddingLarge,
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          children: [
+          children: <Widget>[
             const Icon(
               Icons.wifi_off_rounded,
               size: 56,
@@ -194,6 +206,8 @@ class QuizView extends GetView<QuizController> {
   }
 
   Future<void> _showExitConfirmationDialog(BuildContext context) async {
+    // Do not open dialog while saving — that would let users quit mid-save.
+    if (controller.isFinishing.value) return;
     if (Get.isDialogOpen ?? false) return;
 
     final bool shouldQuit =
@@ -205,7 +219,7 @@ class QuizView extends GetView<QuizController> {
               content: const Text(
                 'Your current progress will be lost if you leave this quiz now.',
               ),
-              actions: [
+              actions: <Widget>[
                 TextButton(
                   onPressed: () => Navigator.of(dialogContext).pop(false),
                   child: const Text('Stay'),

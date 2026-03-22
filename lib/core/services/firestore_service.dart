@@ -9,6 +9,10 @@ class FirestoreService {
 
   final FirebaseFirestore _firestore;
 
+  static GetOptions? _getOptions({required bool forceServer}) {
+    return forceServer ? const GetOptions(source: Source.server) : null;
+  }
+
   Future<int> migrateScoresToTotalScore() async {
     final DocumentReference<Map<String, dynamic>> migrationRef = _firestore
         .collection('meta')
@@ -177,22 +181,50 @@ class FirestoreService {
     await _syncUserDocFromScoreDoc(uid: uid);
   }
 
-  Future<List<Map<String, dynamic>>> getTopScores({int limit = 10}) async {
-    return _getUniqueScores(limit: limit);
+  Future<List<Map<String, dynamic>>> getTopScores({
+    int limit = 10,
+    bool forceServer = false,
+  }) async {
+    return _getUniqueScores(limit: limit, forceServer: forceServer);
   }
 
-  /// Single-fetch method that returns everything the leaderboard needs.
-  /// Fetches scores once, computes rank, user doc, and total count from
-  /// the same sorted list — guaranteeing consistency.
+  /// Fetches the entire sorted scores list ONCE and derives all leaderboard
+  /// values from that single list: top-N for display, user rank, user score
+  /// doc, and total ranked count. This guarantees rank == position in list.
+  ///
+  /// If the signed-in user is not in the top query window (e.g. new or low
+  /// score), their `scores/{uid}` document is merged in so profile / "Your
+  /// position" still reflect their real totals.
   Future<Map<String, dynamic>> getLeaderboardBundle({
     required String uid,
     int displayLimit = 50,
+    bool forceServer = false,
   }) async {
-    final List<Map<String, dynamic>> allScores = await _getUniqueScores();
+    final GetOptions? options = _getOptions(forceServer: forceServer);
+    List<Map<String, dynamic>> allScores =
+        await _getUniqueScores(forceServer: forceServer);
 
-    final int userIndex = allScores.indexWhere(
+    int userIndex = allScores.indexWhere(
       (Map<String, dynamic> s) => s['uid'] == uid || s['docId'] == uid,
     );
+
+    if (userIndex == -1) {
+      final DocumentSnapshot<Map<String, dynamic>> snap = await _firestore
+          .collection('scores')
+          .doc(uid)
+          .get(options);
+      if (snap.exists) {
+        final Map<String, dynamic> normalized = _normalizeScoreDoc(
+          snap.data()!,
+          fallbackUid: uid,
+        );
+        allScores = <Map<String, dynamic>>[...allScores, normalized]
+          ..sort(_compareScoreDocs);
+        userIndex = allScores.indexWhere(
+          (Map<String, dynamic> s) => s['uid'] == uid || s['docId'] == uid,
+        );
+      }
+    }
 
     final int userRank = userIndex == -1 ? 0 : userIndex + 1;
     final Map<String, dynamic>? userScoreDoc =
@@ -258,8 +290,8 @@ class FirestoreService {
     required int categoryId,
     required String categoryName,
     required String categoryEmoji,
-    required int score,
-    required int correctAnswers,
+    required int score, // earned points (stored for display)
+    required int correctAnswers, // raw correct count (used for badge)
     required int totalQuestions,
   }) async {
     final DocumentReference<Map<String, dynamic>> ref = _firestore
@@ -269,32 +301,22 @@ class FirestoreService {
         .doc(categoryId.toString());
 
     final DocumentSnapshot<Map<String, dynamic>> snapshot = await ref.get();
-    final int currentMaxScore = snapshot.exists
+    final int currentMax = snapshot.exists
         ? (snapshot.data()?['maxScore'] as int? ?? 0)
-        : 0;
-    final int currentBestCorrectAnswers = snapshot.exists
-        ? (snapshot.data()?['bestCorrectAnswers'] as int? ??
-              ((snapshot.data()?['maxScore'] as int? ?? 0) <= totalQuestions
-                  ? (snapshot.data()?['maxScore'] as int? ?? 0)
-                  : 0))
         : 0;
     final int attempts = snapshot.exists
         ? (snapshot.data()?['totalAttempts'] as int? ?? 0)
         : 0;
 
-    final int newMaxScore = score > currentMaxScore ? score : currentMaxScore;
-    final int newBestCorrectAnswers = correctAnswers > currentBestCorrectAnswers
-        ? correctAnswers
-        : currentBestCorrectAnswers;
-    final String badge =
-        _calculateBadge(newBestCorrectAnswers, totalQuestions);
+    final int newMax = score > currentMax ? score : currentMax;
+    // Use accuracy (correct/total) not points/total for badge threshold.
+    final String badge = _calculateBadge(correctAnswers, totalQuestions);
 
     await ref.set(<String, dynamic>{
       'categoryId': categoryId,
       'categoryName': categoryName,
       'categoryEmoji': categoryEmoji,
-      'maxScore': newMaxScore,
-      'bestCorrectAnswers': newBestCorrectAnswers,
+      'maxScore': newMax,
       'totalAttempts': attempts + 1,
       'lastPlayedAt': FieldValue.serverTimestamp(),
       'badge': badge,
@@ -390,24 +412,32 @@ class FirestoreService {
         });
   }
 
-  Future<List<Map<String, dynamic>>> getQuizHistory(String uid) async {
+  Future<List<Map<String, dynamic>>> getQuizHistory(
+    String uid, {
+    bool forceServer = false,
+  }) async {
+    final GetOptions? options = _getOptions(forceServer: forceServer);
     final QuerySnapshot<Map<String, dynamic>> snapshot = await _firestore
         .collection('users')
         .doc(uid)
         .collection('quizHistory')
         .orderBy('playedAt', descending: true)
         .limit(20)
-        .get();
+        .get(options);
     return snapshot.docs
         .map((QueryDocumentSnapshot<Map<String, dynamic>> doc) => doc.data())
         .toList();
   }
 
-  Future<Map<String, dynamic>> getUserStats(String uid) async {
+  Future<Map<String, dynamic>> getUserStats(
+    String uid, {
+    bool forceServer = false,
+  }) async {
+    final GetOptions? options = _getOptions(forceServer: forceServer);
     final List<DocumentSnapshot<Map<String, dynamic>>> snapshots =
         await Future.wait<DocumentSnapshot<Map<String, dynamic>>>([
-          _firestore.collection('users').doc(uid).get(),
-          _firestore.collection('scores').doc(uid).get(),
+          _firestore.collection('users').doc(uid).get(options),
+          _firestore.collection('scores').doc(uid).get(options),
         ]);
 
     final DocumentSnapshot<Map<String, dynamic>> userSnap = snapshots[0];
@@ -530,17 +560,25 @@ class FirestoreService {
     }
   }
 
-  Future<List<Map<String, dynamic>>> _getUniqueScores({int? limit}) async {
+  Future<List<Map<String, dynamic>>> _getUniqueScores({
+    int? limit,
+    bool forceServer = false,
+  }) async {
     final int fetchLimit = limit == null
         ? _scoreQueryLimit
         : (limit * 5).clamp(limit, _scoreQueryLimit);
 
     try {
+      // Always order by totalScore. The startup migration guarantees
+      // every document in `scores/` has this field. The old two-query
+      // heuristic caused random sort order when the first document
+      // happened to be an unmigrated doc.
+      final GetOptions? options = _getOptions(forceServer: forceServer);
       final QuerySnapshot<Map<String, dynamic>> snapshot = await _firestore
           .collection('scores')
           .orderBy('totalScore', descending: true)
           .limit(fetchLimit)
-          .get();
+          .get(options);
 
       final List<Map<String, dynamic>> uniqueScores =
           _collectUniqueScores(snapshot.docs)..sort(_compareScoreDocs);

@@ -28,7 +28,7 @@ class HistoryController extends GetxController {
     loadHistory();
   }
 
-  Future<void> loadHistory() async {
+  Future<void> loadHistory({bool forceServer = false}) async {
     final int gen = ++_loadGen;
     isLoading.value = true;
     errorMessage.value = '';
@@ -43,8 +43,8 @@ class HistoryController extends GetxController {
       }
 
       final List<Object> results = await Future.wait(<Future<Object>>[
-        _firestoreService.getQuizHistory(uid),
-        _firestoreService.getUserStats(uid),
+        _firestoreService.getQuizHistory(uid, forceServer: forceServer),
+        _firestoreService.getUserStats(uid, forceServer: forceServer),
       ]);
 
       if (gen != _loadGen) return;
@@ -65,6 +65,9 @@ class HistoryController extends GetxController {
   }
 
   Future<void> refreshHistory() => loadHistory();
+
+  /// After a quiz, read from the server so the new history row appears immediately.
+  Future<void> refreshHistoryAfterQuiz() => loadHistory(forceServer: true);
 
   void clearHistory() {
     quizHistory.clear();

@@ -90,7 +90,6 @@ class LeaderboardPage extends GetView<LeaderboardController> {
         final List<Map<String, dynamic>> topThree = controller.scores
             .take(3)
             .toList();
-        final int topCount = topThree.length;
         final List<Map<String, dynamic>> rest = controller.scores
             .skip(3)
             .take(10)
@@ -196,7 +195,7 @@ class LeaderboardPage extends GetView<LeaderboardController> {
                     final double rawAccRest =
                         (s['avgAccuracy'] as num?)?.toDouble() ?? 0.0;
                     final int accuracyVal = rawAccRest.round();
-                    final int rankNumber = topCount + i + 1;
+                    final int rankNumber = topThree.length + i + 1;
                     final String rankStr = rankNumber.toString().padLeft(
                       2,
                       '0',

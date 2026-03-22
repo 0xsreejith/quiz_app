@@ -217,9 +217,7 @@ class HomePage extends GetView<HomeController> {
             icon: Icons.stars_rounded,
             valueWidget: Obx(
               () => Text(
-                controller.userBestScore.value > 0
-                    ? '${controller.userBestScore.value}'
-                    : '—',
+                '${controller.userBestScore.value}',
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
@@ -235,9 +233,7 @@ class HomePage extends GetView<HomeController> {
             icon: Icons.play_circle_outline,
             valueWidget: Obx(
               () => Text(
-                controller.userTotalPlayed.value > 0
-                    ? '${controller.userTotalPlayed.value}'
-                    : '—',
+                '${controller.userTotalPlayed.value}',
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
@@ -253,9 +249,7 @@ class HomePage extends GetView<HomeController> {
             icon: Icons.track_changes_rounded,
             valueWidget: Obx(
               () => Text(
-                controller.userAvgAccuracy.value > 0
-                    ? '${controller.userAvgAccuracy.value}%'
-                    : '—',
+                '${controller.userAvgAccuracy.value}%',
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
