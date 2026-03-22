@@ -13,172 +13,286 @@ class LeaderboardPage extends GetView<LeaderboardController> {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              const SizedBox(height: 10),
-              const Text('Leaderboard', style: AppTextStyles.pageTitleLarge),
-              const SizedBox(height: 24),
-              // Top 3 Cards
-              TopRankCard(
-                rank: 1,
-                name: 'Marcus Thorne',
-                score: '14,210',
-                accuracy: '98.5%',
-                avgTime: '2M 14S',
-                badgeText: 'ELITE MASTER',
-                avatarWidget: _buildMockAvatar(
-                  color: Colors.white,
-                  bgColor: Colors.teal[700]!,
-                  size: 64,
-                  isSquare: true,
-                ),
-              ),
-              TopRankCard(
-                rank: 2,
-                name: 'Elena Vance',
-                score: '12,480',
-                accuracy: '97.2%',
-                avgTime: '2M 30S',
-                avatarWidget: _buildMockAvatar(
-                  color: Colors.white,
-                  bgColor: Colors.teal[300]!,
-                  size: 56,
-                  isSquare: true,
-                ),
-              ),
-              TopRankCard(
-                rank: 3,
-                name: 'Julian Chen',
-                score: '11,940',
-                accuracy: '96.8%',
-                avgTime: '2M 45S',
-                avatarWidget: _buildMockAvatar(
-                  color: Colors.white,
-                  bgColor: Colors.orange[300]!,
-                  size: 56,
-                  isSquare: true,
-                ),
-              ),
-              const SizedBox(height: 32),
-              // List header
-              Row(
-                children: <Widget>[
-                  Text('RK', style: AppTextStyles.statLabel.copyWith(letterSpacing: 1.5)),
-                  const SizedBox(width: 14),
-                  Text('USER', style: AppTextStyles.statLabel.copyWith(letterSpacing: 1.5)),
-                  const Spacer(),
-                  Text('ACC %', style: AppTextStyles.statLabel.copyWith(letterSpacing: 1.5)),
-                  const SizedBox(width: 16),
-                  SizedBox(
-                    width: 60,
-                    child: Text('POINTS', textAlign: TextAlign.right, style: AppTextStyles.statLabel.copyWith(letterSpacing: 1.5)),
+      child: Obx(() {
+        if (controller.isLoading.value) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(32),
+              child: CircularProgressIndicator(color: AppColors.primary),
+            ),
+          );
+        }
+
+        if (controller.errorMessage.value != null) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.error_outline,
+                      color: AppColors.textMuted, size: 48),
+                  const SizedBox(height: 16),
+                  const Text('Unable to load data',
+                      style: AppTextStyles.cardTitle),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: controller.fetchLeaderboard,
+                    child: const Text('Retry'),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              // Ranks 4-6
-              RankListTile(
-                rank: '04',
-                name: 'Sarah Kovic',
-                accuracy: '96.2',
-                score: '10,850',
-                avatarWidget: _buildInitialsAvatar('SK', AppColors.chipBgBlue, AppColors.darkNavy),
+            ),
+          );
+        }
+
+        if (controller.scores.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: const [
+                  Icon(Icons.inbox_outlined,
+                      color: AppColors.textMuted, size: 48),
+                  SizedBox(height: 16),
+                  Text('No data yet', style: AppTextStyles.cardTitle),
+                  SizedBox(height: 8),
+                  Text(
+                    'Complete a quiz to see your results here',
+                    style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
               ),
-              RankListTile(
-                rank: '05',
-                name: 'David Ames',
-                accuracy: '97.5',
-                score: '10,420',
-                avatarWidget: _buildInitialsAvatar('DA', AppColors.chipBgGreen, Colors.black),
-              ),
-              RankListTile(
-                rank: '06',
-                name: 'Lia Moreno',
-                accuracy: '96.8',
-                score: '9,980',
-                avatarWidget: _buildMockAvatar(color: Colors.white, bgColor: Colors.brown[300]!, size: 36),
-              ),
-              const SizedBox(height: 24),
-              Text('YOUR POSITION', style: AppTextStyles.statLabel.copyWith(letterSpacing: 1.5, color: AppColors.primary)),
-              const SizedBox(height: 8),
-              YourPositionCard(
-                rank: '142nd',
-                name: 'Elite Architect',
-                subtitle: 'TOP 12% OVERALL',
-                score: '4,120 PTS',
-                trend: '+240 this week',
-                avatarWidget: _buildMockAvatar(color: Colors.black, bgColor: Colors.orange[200]!, size: 40),
-              ),
-              const SizedBox(height: 32),
-              // Buttons
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(4),
+            ),
+          );
+        }
+
+        final List<Map<String, dynamic>> topThree =
+            controller.scores.take(3).toList();
+        final List<Map<String, dynamic>> rest =
+            controller.scores.skip(3).take(10).toList();
+
+        return SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                const SizedBox(height: 10),
+                const Text('Leaderboard', style: AppTextStyles.pageTitleLarge),
+                const SizedBox(height: 24),
+                // Top 3 Cards
+                ...topThree.asMap().entries.map((MapEntry<int, Map<String, dynamic>> entry) {
+                  final int i = entry.key;
+                  final Map<String, dynamic> s = entry.value;
+                  final String displayName = s['displayName'] as String? ?? '';
+                  final String email = s['email'] as String? ?? 'User';
+                  final String name = displayName.isNotEmpty ? displayName : email.split('@').first;
+                  final int scoreVal = s['score'] as int? ?? 0;
+                  final List<Color> bgColors = <Color>[
+                    Colors.teal[700]!,
+                    Colors.teal[300]!,
+                    Colors.orange[300]!,
+                  ];
+                  return TopRankCard(
+                    rank: i + 1,
+                    name: name,
+                    score: _formatScore(scoreVal),
+                    accuracy: '—',
+                    avgTime: '—',
+                    avatarWidget: _buildInitialsAvatar(
+                      name.isNotEmpty ? name[0].toUpperCase() : 'U',
+                      bgColors[i],
+                      Colors.white,
+                    ),
+                    badgeText: i == 0 ? 'TOP SCORER' : null,
+                  );
+                }),
+                const SizedBox(height: 32),
+                // List header
+                if (rest.isNotEmpty) ...[
+                  Row(
+                    children: <Widget>[
+                      Text('RK',
+                          style: AppTextStyles.statLabel
+                              .copyWith(letterSpacing: 1.5)),
+                      const SizedBox(width: 14),
+                      Text('USER',
+                          style: AppTextStyles.statLabel
+                              .copyWith(letterSpacing: 1.5)),
+                      const Spacer(),
+                      Text('ACC %',
+                          style: AppTextStyles.statLabel
+                              .copyWith(letterSpacing: 1.5)),
+                      const SizedBox(width: 16),
+                      SizedBox(
+                        width: 60,
+                        child: Text('POINTS',
+                            textAlign: TextAlign.right,
+                            style: AppTextStyles.statLabel
+                                .copyWith(letterSpacing: 1.5)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  // Ranks 4+
+                  ...rest.asMap().entries.map((MapEntry<int, Map<String, dynamic>> entry) {
+                    final int i = entry.key;
+                    final Map<String, dynamic> s = entry.value;
+                    final String displayName = s['displayName'] as String? ?? '';
+                    final String email = s['email'] as String? ?? 'User';
+                    final String name = displayName.isNotEmpty ? displayName : email.split('@').first;
+                    final int scoreVal = s['score'] as int? ?? 0;
+                    final String rankStr =
+                        (i + 4).toString().padLeft(2, '0');
+                    return RankListTile(
+                      rank: rankStr,
+                      name: name,
+                      accuracy: '—',
+                      score: _formatScore(scoreVal),
+                      avatarWidget: _buildInitialsAvatar(
+                        name.isNotEmpty ? name[0].toUpperCase() : 'U',
+                        AppColors.chipBgBlue,
+                        AppColors.darkNavy,
+                      ),
+                    );
+                  }),
+                ],
+                const SizedBox(height: 24),
+                // Your position
+                _buildYourPosition(),
+                const SizedBox(height: 32),
+                // Buttons
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    onPressed: () {},
+                    child: const Text(
+                      'ENTER GLOBAL TOURNAMENT',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          letterSpacing: 0.5),
                     ),
                   ),
-                  onPressed: () {},
-                  child: const Text(
-                    'ENTER GLOBAL TOURNAMENT',
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, letterSpacing: 0.5),
-                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: AppColors.textDarkest,
-                    side: const BorderSide(color: Colors.white, width: 0),
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(4),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: AppColors.textDarkest,
+                      side: const BorderSide(color: Colors.white, width: 0),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    onPressed: () {},
+                    child: const Text(
+                      'VIEW ALL TIME RANKINGS',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          letterSpacing: 0.5),
                     ),
                   ),
-                  onPressed: () {},
-                  child: const Text(
-                    'VIEW ALL TIME RANKINGS',
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, letterSpacing: 0.5),
-                  ),
                 ),
-              ),
-              const SizedBox(height: 32),
-            ],
+                const SizedBox(height: 32),
+              ],
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _buildYourPosition() {
+    final Map<String, dynamic>? userScore = controller.userScoreDoc.value;
+    final int rank = controller.userGlobalRank.value;
+
+    if (userScore == null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('YOUR POSITION',
+              style: AppTextStyles.statLabel
+                  .copyWith(letterSpacing: 1.5, color: AppColors.primary)),
+          const SizedBox(height: 8),
+          _UnrankedPositionCard(
+            name: 'Play a quiz to rank',
+            subtitle: 'NOT RANKED YET',
+            score: '0 PTS',
+            avatarWidget: _buildInitialsAvatar('?', AppColors.chipBgBlue, AppColors.darkNavy),
+          ),
+        ],
+      );
+    }
+
+    final String displayName = userScore['displayName'] as String? ?? '';
+    final String email = userScore['email'] as String? ?? '';
+    final String name = displayName.isNotEmpty ? displayName : email.split('@').first;
+    final int scoreVal = userScore['score'] as int? ?? 0;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('YOUR POSITION',
+            style: AppTextStyles.statLabel
+                .copyWith(letterSpacing: 1.5, color: AppColors.primary)),
+        const SizedBox(height: 8),
+        YourPositionCard(
+          rank: _ordinal(rank),
+          name: name.isNotEmpty ? name : 'You',
+          subtitle: 'TOP ${_percentile(rank, controller.scores.length)}% OVERALL',
+          score: '$scoreVal PTS',
+          trend: '',
+          avatarWidget: _buildInitialsAvatar(
+            name.isNotEmpty ? name[0].toUpperCase() : 'U',
+            AppColors.chipBgBlue,
+            AppColors.darkNavy,
           ),
         ),
-      ),
+      ],
     );
   }
 
-  Widget _buildMockAvatar({required Color color, required Color bgColor, required double size, bool isSquare = false}) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(isSquare ? 16 : size / 2),
-        border: isSquare ? Border.all(color: Colors.blue.withOpacity(0.2), width: 3) : null,
-      ),
-      child: Center(
-        child: Icon(Icons.person, color: color, size: size * 0.6),
-      ),
-    );
+  String _ordinal(int n) {
+    if (n <= 0) return '—';
+    final int mod100 = n % 100;
+    final String suffix = (mod100 >= 11 && mod100 <= 13)
+        ? 'th'
+        : <String>['th', 'st', 'nd', 'rd', 'th'][n % 10 < 4 ? n % 10 : 4];
+    return '$n$suffix';
   }
 
-  Widget _buildInitialsAvatar(String initials, Color bgColor, Color textColor) {
+  String _percentile(int rank, int total) {
+    if (total == 0) return '0';
+    return ((rank / total) * 100).round().toString();
+  }
+
+  String _formatScore(int score) {
+    if (score >= 1000) {
+      return '${(score / 1000).toStringAsFixed(1)}k';
+    }
+    return score.toString();
+  }
+
+  Widget _buildInitialsAvatar(
+      String initials, Color bgColor, Color textColor) {
     return Container(
       width: 36,
       height: 36,
@@ -195,6 +309,87 @@ class LeaderboardPage extends GetView<LeaderboardController> {
             fontSize: 14,
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _UnrankedPositionCard extends StatelessWidget {
+  const _UnrankedPositionCard({
+    required this.name,
+    required this.subtitle,
+    required this.score,
+    required this.avatarWidget,
+  });
+
+  final String name;
+  final String subtitle;
+  final String score;
+  final Widget avatarWidget;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: BoxDecoration(
+        color: AppColors.deepNavy,
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.3),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Row(
+        children: <Widget>[
+          const Text(
+            '—',
+            style: TextStyle(
+                color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(width: 16),
+          avatarWidget,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Text(
+                  name,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.7),
+                    fontSize: 10,
+                    letterSpacing: 1.0,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Text(
+                score,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

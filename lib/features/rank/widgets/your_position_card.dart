@@ -27,7 +27,7 @@ class YourPositionCard extends StatelessWidget {
         color: AppColors.deepNavy,
         boxShadow: <BoxShadow>[
           BoxShadow(
-            color: AppColors.primary.withOpacity(0.3),
+            color: AppColors.primary.withValues(alpha: 0.3),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -71,7 +71,7 @@ class YourPositionCard extends StatelessWidget {
                 Text(
                   subtitle,
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.7),
+                    color: Colors.white.withValues(alpha: 0.7),
                     fontSize: 10,
                     letterSpacing: 1.0,
                     fontWeight: FontWeight.w600,
@@ -95,7 +95,7 @@ class YourPositionCard extends StatelessWidget {
               Text(
                 trend,
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.7),
+                  color: Colors.white.withValues(alpha: 0.7),
                   fontSize: 10,
                   fontWeight: FontWeight.w500,
                 ),

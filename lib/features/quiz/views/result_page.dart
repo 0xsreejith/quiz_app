@@ -3,15 +3,25 @@ import 'package:get/get.dart';
 import 'package:quiz_app/core/constants/app_colors.dart';
 import 'package:quiz_app/core/constants/app_spacing.dart';
 import 'package:quiz_app/core/widgets/common_app_bar.dart';
-import 'package:quiz_app/features/quiz/controllers/quiz_controller.dart';
+import 'package:quiz_app/features/history/controllers/history_controller.dart';
+import 'package:quiz_app/features/home/controllers/home_controller.dart';
+import 'package:quiz_app/features/profile/controllers/profile_controller.dart';
 import 'package:quiz_app/features/quiz/widgets/correct_answers_card.dart';
 import 'package:quiz_app/features/quiz/widgets/final_score_card.dart';
+import 'package:quiz_app/features/rank/controllers/leaderboard_controller.dart';
+import 'package:quiz_app/routes/app_routes.dart';
 
-class ResultPage extends GetView<QuizController> {
+class ResultPage extends StatelessWidget {
   const ResultPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final Map<String, dynamic> args =
+        Get.arguments as Map<String, dynamic>? ?? {};
+    final int scoreValue = args['score'] as int? ?? 0;
+    final int totalQuestions = args['totalQuestions'] as int? ?? 0;
+    final RxInt score = scoreValue.obs;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       appBar: const CommonAppBar(
@@ -59,19 +69,19 @@ class ResultPage extends GetView<QuizController> {
                       ),
                     ),
                     const SizedBox(height: AppSpacing.xxxl),
-                    
+
                     FinalScoreCard(
-                      score: controller.score,
-                      totalQuestions: controller.totalQuestions,
+                      score: score,
+                      totalQuestions: totalQuestions,
                     ),
                     const SizedBox(height: AppSpacing.lg),
-                    
+
                     CorrectAnswersCard(
-                      score: controller.score,
-                      totalQuestions: controller.totalQuestions,
+                      score: score,
+                      totalQuestions: totalQuestions,
                     ),
                     const SizedBox(height: 48),
-                    
+
                     _buildActionButtons(),
                   ],
                 ),
@@ -87,7 +97,13 @@ class ResultPage extends GetView<QuizController> {
     return Column(
       children: [
         ElevatedButton(
-          onPressed: controller.saveScore,
+          onPressed: () async {
+            if (Get.isRegistered<HomeController>()) {
+              await Get.find<HomeController>().refreshAfterQuiz();
+            }
+            await _refreshShellData();
+            Get.offAllNamed(AppRoutes.appShell);
+          },
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
             padding: const EdgeInsets.symmetric(vertical: 18),
@@ -100,7 +116,7 @@ class ResultPage extends GetView<QuizController> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                'Save Score',
+                'Back to Home',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -108,41 +124,34 @@ class ResultPage extends GetView<QuizController> {
                 ),
               ),
               SizedBox(width: 8),
-              Icon(Icons.save_outlined, color: Colors.white, size: 20),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        OutlinedButton(
-          onPressed: controller.goHome,
-          style: OutlinedButton.styleFrom(
-            backgroundColor: AppColors.white,
-            side: const BorderSide(color: Colors.transparent),
-            padding: const EdgeInsets.symmetric(vertical: 18),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-            elevation: 1,
-            shadowColor: Colors.black.withValues(alpha: 0.05),
-          ),
-          child: const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'Return Home',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.primary,
-                ),
-              ),
-              SizedBox(width: 8),
-              Icon(Icons.refresh, color: AppColors.primary, size: 20),
+              Icon(Icons.home_outlined, color: Colors.white, size: 20),
             ],
           ),
         ),
         const SizedBox(height: AppSpacing.lg),
       ],
     );
+  }
+
+  Future<void> _refreshShellData() async {
+    await _safeRefresh<HistoryController>((HistoryController controller) {
+      return controller.refreshHistory();
+    });
+    await _safeRefresh<ProfileController>((ProfileController controller) {
+      return controller.refreshAfterQuiz();
+    });
+    await _safeRefresh<LeaderboardController>((
+      LeaderboardController controller,
+    ) {
+      return controller.fetchLeaderboard();
+    });
+  }
+
+  Future<void> _safeRefresh<T>(
+    Future<void> Function(T controller) action,
+  ) async {
+    try {
+      await action(Get.find<T>());
+    } catch (_) {}
   }
 }

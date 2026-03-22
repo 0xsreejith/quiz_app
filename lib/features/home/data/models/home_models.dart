@@ -116,16 +116,15 @@ class TopPerformer {
   }
 
   String get formattedPoints {
-    return '${points.toString().replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-      (Match m) => '${m[1]},',
-    )} pts';
+    return '${points.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')} pts';
   }
 
-  String get displayName {
-    if (isCurrentUser) return '$name (You)';
-    return name;
-  }
+  /// Clean leaderboard handle — never includes "(You)".
+  String get displayName => name;
+
+  /// Use ONLY in the Home "Top Performers" list to identify the current user.
+  /// Do NOT use in leaderboard rank lists or rank cards.
+  String get homeDisplayName => isCurrentUser ? '$name (You)' : name;
 }
 
 class RecentActivity {
@@ -160,11 +159,11 @@ class RecentActivity {
   }
 
   String get formattedAccuracy => '$accuracy% ACCURACY';
-  
+
   String get timeAgo {
     final now = DateTime.now();
     final difference = now.difference(completedAt);
-    
+
     if (difference.inHours < 1) {
       final minutes = difference.inMinutes;
       return minutes <= 1 ? 'JUST NOW' : '$minutes MINUTES AGO';

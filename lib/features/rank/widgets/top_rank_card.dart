@@ -42,7 +42,7 @@ class TopRankCard extends StatelessWidget {
             : null,
         boxShadow: <BoxShadow>[
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -73,7 +73,7 @@ class TopRankCard extends StatelessWidget {
                 style: AppTextStyles.statLabel.copyWith(
                   fontSize: 14,
                   fontWeight: FontWeight.w400,
-                  color: AppColors.textMuted.withOpacity(0.5),
+                  color: AppColors.textMuted.withValues(alpha: 0.5),
                 ),
               ),
             ),
@@ -119,7 +119,7 @@ class TopRankCard extends StatelessWidget {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.08),
+                      color: AppColors.primary.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Text(

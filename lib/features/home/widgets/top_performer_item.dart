@@ -76,7 +76,7 @@ class TopPerformerItem extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(
-                    performer.displayName,
+                    performer.homeDisplayName,
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
@@ -88,10 +88,7 @@ class TopPerformerItem extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     'Level ${performer.level} · ${performer.title}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textMuted,
-                    ),
+                    style: TextStyle(fontSize: 12, color: AppColors.textMuted),
                   ),
                 ],
               ),

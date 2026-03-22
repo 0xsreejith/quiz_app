@@ -23,6 +23,35 @@ class HomePage extends GetView<HomeController> {
             );
           }
 
+          if (controller.errorMessage.value.isNotEmpty) {
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.error_outline,
+                    color: AppColors.textMuted,
+                    size: 48,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Unable to load data',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textDarkest,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: controller.loadData,
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            );
+          }
+
           return CustomScrollView(
             slivers: <Widget>[
               // ── Header ──
@@ -73,10 +102,7 @@ class HomePage extends GetView<HomeController> {
                 SizedBox(height: 4),
                 Text(
                   'Test your knowledge across categories',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textMuted,
-                  ),
+                  style: TextStyle(fontSize: 14, color: AppColors.textMuted),
                 ),
               ],
             ),
@@ -148,21 +174,50 @@ class HomePage extends GetView<HomeController> {
         children: <Widget>[
           _StatChip(
             icon: Icons.grid_view_rounded,
-            value: '${TriviaCategories.all.length}',
+            valueWidget: Text(
+              '${TriviaCategories.all.length}',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: AppColors.primary,
+              ),
+            ),
             label: 'Categories',
             color: AppColors.primary,
           ),
           const SizedBox(width: 12),
-          const _StatChip(
+          _StatChip(
             icon: Icons.emoji_events_outlined,
-            value: '—',
+            valueWidget: Obx(
+              () => Text(
+                controller.userBestScore.value > 0
+                    ? '${controller.userBestScore.value}'
+                    : '—',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFFD4AF37),
+                ),
+              ),
+            ),
             label: 'Top Score',
-            color: Color(0xFFD4AF37),
+            color: const Color(0xFFD4AF37),
           ),
           const SizedBox(width: 12),
-          const _StatChip(
+          _StatChip(
             icon: Icons.play_circle_outline,
-            value: '—',
+            valueWidget: Obx(
+              () => Text(
+                controller.userTotalPlayed.value > 0
+                    ? '${controller.userTotalPlayed.value}'
+                    : '—',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.accentGreen,
+                ),
+              ),
+            ),
             label: 'Played',
             color: AppColors.accentGreen,
           ),
@@ -180,8 +235,9 @@ class HomePage extends GetView<HomeController> {
       child: Obx(() {
         final List<CategoryModel> categories = controller.filteredCategories;
         final bool isSearching = controller.searchQuery.value.trim().isNotEmpty;
-        final int itemCount =
-            isSearching ? categories.length : (categories.length > 6 ? 6 : categories.length);
+        final int itemCount = isSearching
+            ? categories.length
+            : (categories.length > 6 ? 6 : categories.length);
 
         return Column(
           children: <Widget>[
@@ -249,81 +305,83 @@ class HomePage extends GetView<HomeController> {
   // Top Performers
   // ─────────────────────────────────────────────────────────────────────
   Widget _buildTopPerformersSection() {
-    if (controller.topPerformers.isEmpty) {
-      return const SizedBox.shrink();
-    }
+    return Obx(() {
+      if (controller.topPerformers.isEmpty) {
+        return const SizedBox.shrink();
+      }
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
-      child: Column(
-        children: <Widget>[
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: <Widget>[
-              const Text(
-                'Top Performers',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textDarkest,
-                ),
-              ),
-              GestureDetector(
-                onTap: () {},
-                child: const Text(
-                  'See all',
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
+        child: Column(
+          children: <Widget>[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: <Widget>[
+                const Text(
+                  'Top Performers',
                   style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textDarkest,
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: const <BoxShadow>[
-                BoxShadow(
-                  color: Color(0x0A000000),
-                  blurRadius: 12,
-                  offset: Offset(0, 4),
+                GestureDetector(
+                  onTap: controller.navigateToLeaderboard,
+                  child: const Text(
+                    'See all',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primary,
+                    ),
+                  ),
                 ),
               ],
             ),
-            child: Column(
-              children: controller.topPerformers.asMap().entries.map((
-                MapEntry<int, dynamic> entry,
-              ) {
-                final int index = entry.key;
-                final performer = entry.value;
-                final bool isLast =
-                    index == controller.topPerformers.length - 1;
-                return Column(
-                  children: <Widget>[
-                    TopPerformerItem(
-                      performer: performer,
-                      rank: index + 1,
-                      onTap: () => controller.navigateToProfile(performer.id),
-                    ),
-                    if (!isLast)
-                      Divider(
-                        height: 1,
-                        indent: 56,
-                        endIndent: 16,
-                        color: Colors.grey[200],
+            const SizedBox(height: 16),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: const <BoxShadow>[
+                  BoxShadow(
+                    color: Color(0x0A000000),
+                    blurRadius: 12,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: controller.topPerformers.asMap().entries.map((
+                  MapEntry<int, dynamic> entry,
+                ) {
+                  final int index = entry.key;
+                  final performer = entry.value;
+                  final bool isLast =
+                      index == controller.topPerformers.length - 1;
+                  return Column(
+                    children: <Widget>[
+                      TopPerformerItem(
+                        performer: performer,
+                        rank: index + 1,
+                        onTap: () => controller.navigateToProfile(performer.id),
                       ),
-                  ],
-                );
-              }).toList(),
+                      if (!isLast)
+                        Divider(
+                          height: 1,
+                          indent: 56,
+                          endIndent: 16,
+                          color: Colors.grey[200],
+                        ),
+                    ],
+                  );
+                }).toList(),
+              ),
             ),
-          ),
-        ],
-      ),
-    );
+          ],
+        ),
+      );
+    });
   }
 }
 
@@ -334,13 +392,13 @@ class HomePage extends GetView<HomeController> {
 class _StatChip extends StatelessWidget {
   const _StatChip({
     required this.icon,
-    required this.value,
+    required this.valueWidget,
     required this.label,
     required this.color,
   });
 
   final IconData icon;
-  final String value;
+  final Widget valueWidget;
   final String label;
   final Color color;
 
@@ -364,14 +422,7 @@ class _StatChip extends StatelessWidget {
           children: <Widget>[
             Icon(icon, size: 20, color: color),
             const SizedBox(height: 8),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: color,
-              ),
-            ),
+            valueWidget,
             const SizedBox(height: 2),
             Text(
               label,

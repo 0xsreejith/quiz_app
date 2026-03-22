@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:quiz_app/core/services/auth_service.dart';
 import 'package:quiz_app/core/services/firestore_service.dart';
@@ -20,6 +21,8 @@ class QuizController extends GetxController {
 
   final RxInt timeLeft = questionTimeSeconds.obs;
   Timer? _timer;
+  bool _isFinishing = false;
+  bool _nextScheduled = false;
 
   QuizController();
 
@@ -44,6 +47,8 @@ class QuizController extends GetxController {
   bool get isLastQuestion => currentIndex.value == questions.length - 1;
   int get totalQuestions => questions.length;
 
+  int get correctAnswers => score.value;
+
   @override
   void onInit() {
     super.onInit();
@@ -52,6 +57,9 @@ class QuizController extends GetxController {
   }
 
   Future<void> loadQuestions() async {
+    _timer?.cancel();
+    _isFinishing = false;
+    _nextScheduled = false;
     isLoading.value = true;
     errorMessage.value = null;
     try {
@@ -59,6 +67,10 @@ class QuizController extends GetxController {
         categoryId: categoryId,
       );
       questions.assignAll(result);
+      currentIndex.value = 0;
+      score.value = 0;
+      selectedAnswer.value = null;
+      hasAnswered.value = false;
       _startTimer();
     } on Exception catch (e) {
       errorMessage.value = e.toString();
@@ -69,6 +81,7 @@ class QuizController extends GetxController {
 
   void _startTimer() {
     _timer?.cancel();
+    _nextScheduled = false;
     timeLeft.value = questionTimeSeconds;
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (timeLeft.value > 0) {
@@ -79,9 +92,7 @@ class QuizController extends GetxController {
           hasAnswered.value = true;
           selectedAnswer.value = null;
         }
-        Future.delayed(const Duration(seconds: 1), () {
-          if (!isClosed) nextQuestion();
-        });
+        _scheduleNextQuestion();
       }
     });
   }
@@ -91,15 +102,27 @@ class QuizController extends GetxController {
     _timer?.cancel();
     selectedAnswer.value = answer;
     hasAnswered.value = true;
-    if (answer == currentQuestion.correctAnswer) {
+    if (currentQuestion.checkAnswer(answer)) {
       score.value++;
+    } else {
+      HapticFeedback.vibrate();
     }
+    _scheduleNextQuestion();
+  }
+
+  void _scheduleNextQuestion() {
+    if (_nextScheduled) return;
+    _nextScheduled = true;
     Future.delayed(const Duration(milliseconds: 1500), () {
-      if (!isClosed) nextQuestion();
+      if (!isClosed) {
+        _nextScheduled = false;
+        nextQuestion();
+      }
     });
   }
 
   void nextQuestion() {
+    if (!hasAnswered.value) return;
     if (isLastQuestion) {
       finishQuiz();
     } else {
@@ -111,46 +134,63 @@ class QuizController extends GetxController {
   }
 
   Future<void> finishQuiz() async {
+    if (_isFinishing) return;
+    _isFinishing = true;
     _timer?.cancel();
     final AuthService authService = Get.find<AuthService>();
     final FirestoreService firestoreService = Get.find<FirestoreService>();
     final User? user = authService.currentUser;
+    final int finalScore = score.value;
+    final int totalQuestionCount = questions.length;
+    final int finalCorrectAnswers = correctAnswers;
+    final String finalCategoryName = categoryName.value ?? '';
+    final String finalCategoryEmoji = categoryEmoji.value ?? '';
 
-    if (user != null && categoryId != null) {
+    if (user != null) {
       try {
-        await firestoreService.saveCategoryScore(
+        // Save to global scores collection
+        await firestoreService.saveScore(
           uid: user.uid,
-          categoryId: categoryId!,
-          categoryName: categoryName.value ?? '',
-          categoryEmoji: categoryEmoji.value ?? '',
-          score: score.value,
-          totalQuestions: questions.length,
+          email: user.email ?? 'Unknown',
+          score: finalScore,
+          displayName:
+              user.displayName ?? (user.email?.split('@').first ?? 'Unknown'),
+        );
+
+        // Save to category scores
+        if (categoryId != null) {
+          await firestoreService.saveCategoryScore(
+            uid: user.uid,
+            categoryId: categoryId!,
+            categoryName: finalCategoryName,
+            categoryEmoji: finalCategoryEmoji,
+            score: finalScore,
+            totalQuestions: totalQuestionCount,
+          );
+        }
+
+        // Save to quiz history
+        await firestoreService.saveQuizHistory(
+          uid: user.uid,
+          categoryName: finalCategoryName.isNotEmpty
+              ? finalCategoryName
+              : 'General',
+          categoryEmoji: finalCategoryEmoji.isNotEmpty
+              ? finalCategoryEmoji
+              : '📝',
+          score: finalScore,
+          totalQuestions: totalQuestionCount,
+          correctAnswers: finalCorrectAnswers,
         );
       } catch (e) {
-        debugPrint('Error saving category score: $e');
+        debugPrint('Error saving quiz results: $e');
       }
     }
 
-    Get.offNamed(AppRoutes.result);
-  }
-
-  Future<void> saveScore() async {
-    final User? user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      Get.snackbar('Error', 'You must be logged in to save your score.');
-      return;
-    }
-    try {
-      final FirestoreService firestoreService = FirestoreService();
-      await firestoreService.saveScore(
-        uid: user.uid,
-        email: user.email ?? 'Unknown',
-        score: score.value,
-      );
-      Get.snackbar('Success', 'Score saved successfully!');
-    } on Exception catch (e) {
-      Get.snackbar('Error', 'Failed to save score: $e');
-    }
+    Get.offNamed(
+      AppRoutes.result,
+      arguments: {'score': finalScore, 'totalQuestions': totalQuestionCount},
+    );
   }
 
   void goHome() {
