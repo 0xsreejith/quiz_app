@@ -11,8 +11,12 @@ class FinalScoreCard extends StatelessWidget {
     super.key,
   });
 
+  /// Earned leaderboard points for this quiz session.
   final RxInt score;
+
+  /// Raw correct-answer count (for accuracy bar).
   final int correctAnswers;
+
   final int totalQuestions;
 
   @override
@@ -22,7 +26,7 @@ class FinalScoreCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [
+        boxShadow: <BoxShadow>[
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 15,
@@ -32,14 +36,14 @@ class FinalScoreCard extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
+        children: <Widget>[
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+            children: <Widget>[
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+                children: <Widget>[
                   Text(
                     'FINAL SCORE',
                     style: TextStyle(
@@ -74,7 +78,7 @@ class FinalScoreCard extends StatelessWidget {
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
-                  children: [
+                  children: <Widget>[
                     Icon(Icons.star, color: Colors.green.shade700, size: 14),
                     const SizedBox(width: 4),
                     Text(
@@ -93,7 +97,7 @@ class FinalScoreCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.xxl),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
+            children: <Widget>[
               Text(
                 'Accuracy',
                 style: TextStyle(fontSize: 13, color: Colors.grey.shade600),

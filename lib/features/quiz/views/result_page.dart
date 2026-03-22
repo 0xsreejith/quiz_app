@@ -3,11 +3,15 @@ import 'package:get/get.dart';
 import 'package:quiz_app/core/constants/app_colors.dart';
 import 'package:quiz_app/core/constants/app_spacing.dart';
 import 'package:quiz_app/core/widgets/common_app_bar.dart';
+import 'package:quiz_app/features/history/bindings/history_binding.dart';
 import 'package:quiz_app/features/history/controllers/history_controller.dart';
+import 'package:quiz_app/features/home/bindings/home_binding.dart';
 import 'package:quiz_app/features/home/controllers/home_controller.dart';
+import 'package:quiz_app/features/profile/bindings/profile_binding.dart';
 import 'package:quiz_app/features/profile/controllers/profile_controller.dart';
 import 'package:quiz_app/features/quiz/widgets/correct_answers_card.dart';
 import 'package:quiz_app/features/quiz/widgets/final_score_card.dart';
+import 'package:quiz_app/features/rank/bindings/rank_binding.dart';
 import 'package:quiz_app/features/rank/controllers/leaderboard_controller.dart';
 import 'package:quiz_app/routes/app_routes.dart';
 
@@ -20,55 +24,88 @@ class ResultPage extends StatefulWidget {
 
 class _ResultPageState extends State<ResultPage> {
   bool _isGoingHome = false;
-  late final int _score;
-  late final int _totalQuestions;
+
+  // Scores read once from arguments in initState — never re-read in build.
+  late final int _earnedPoints;
   late final int _correctAnswers;
-  late final RxInt _rxScore;
+  late final int _totalQuestions;
+  late final RxInt _rxEarnedPoints;
+  late final RxInt _rxCorrectAnswers;
 
   @override
   void initState() {
     super.initState();
     final Map<String, dynamic> args =
-        Get.arguments as Map<String, dynamic>? ?? {};
-    _score = args['score'] as int? ?? 0;
+        Get.arguments as Map<String, dynamic>? ?? <String, dynamic>{};
+    _earnedPoints = args['score'] as int? ?? 0;
     _totalQuestions = args['totalQuestions'] as int? ?? 0;
-    _correctAnswers = args['correctAnswers'] as int? ?? _score;
-    _rxScore = _score.obs;
+    _correctAnswers = args['correctAnswers'] as int? ?? _earnedPoints;
+    _rxEarnedPoints = _earnedPoints.obs;
+    _rxCorrectAnswers = _correctAnswers.obs;
   }
+
+  void _ensureTabControllersRegistered() {
+    if (!Get.isRegistered<HomeController>()) {
+      HomeBinding().dependencies();
+    }
+    if (!Get.isRegistered<HistoryController>()) {
+      HistoryBinding().dependencies();
+    }
+    if (!Get.isRegistered<ProfileController>()) {
+      ProfileBinding().dependencies();
+    }
+    if (!Get.isRegistered<LeaderboardController>()) {
+      RankBinding().dependencies();
+    }
+  }
+
+  // ── Navigation ─────────────────────────────────────────────────────────────
 
   Future<void> _goHome() async {
     if (_isGoingHome) return;
     setState(() => _isGoingHome = true);
 
-    final List<Future<void>> refreshJobs = <Future<void>>[];
+    // Navigate first: Get.offAllNamed disposes the old shell and its
+    // controllers. Refreshing *before* navigation updated instances that are
+    // thrown away, so Home / History / Profile / Rank never showed new points.
+    Get.offAllNamed(AppRoutes.appShell);
+
+    // Wait for the new AppShell route + lazy controllers to exist, then
+    // refresh the NEW instances (and prefer server reads to avoid stale cache).
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    _ensureTabControllersRegistered();
+
+    final List<Future<void>> jobs = <Future<void>>[];
 
     if (Get.isRegistered<HomeController>()) {
-      refreshJobs.add(
+      jobs.add(
         Get.find<HomeController>().refreshAfterQuiz().catchError((_) {}),
       );
     }
     if (Get.isRegistered<HistoryController>()) {
-      refreshJobs.add(
-        Get.find<HistoryController>().refreshHistory().catchError((_) {}),
+      jobs.add(
+        Get.find<HistoryController>().refreshHistoryAfterQuiz().catchError(
+              (_) {},
+            ),
       );
     }
     if (Get.isRegistered<ProfileController>()) {
-      refreshJobs.add(
+      jobs.add(
         Get.find<ProfileController>().refreshAfterQuiz().catchError((_) {}),
       );
     }
     if (Get.isRegistered<LeaderboardController>()) {
-      refreshJobs.add(
-        Get.find<LeaderboardController>().fetchLeaderboard().catchError((_) {}),
+      jobs.add(
+        Get.find<LeaderboardController>()
+            .fetchLeaderboardAfterQuiz()
+            .catchError((_) {}),
       );
     }
 
-    await Future.wait(refreshJobs);
-
-    if (mounted) {
-      Get.offAllNamed(AppRoutes.appShell);
-    }
+    await Future.wait(jobs);
   }
+
+  // ── Build ──────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -86,7 +123,7 @@ class _ResultPageState extends State<ResultPage> {
         ),
         body: SafeArea(
           child: Column(
-            children: [
+            children: <Widget>[
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.symmetric(
@@ -95,7 +132,7 @@ class _ResultPageState extends State<ResultPage> {
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
+                    children: <Widget>[
                       Text(
                         'PERFORMANCE SUMMARY',
                         style: TextStyle(
@@ -125,14 +162,16 @@ class _ResultPageState extends State<ResultPage> {
                         ),
                       ),
                       const SizedBox(height: AppSpacing.xxxl),
+                      // FinalScoreCard shows earned points + accuracy bar.
                       FinalScoreCard(
-                        score: _rxScore,
+                        score: _rxEarnedPoints,
                         correctAnswers: _correctAnswers,
                         totalQuestions: _totalQuestions,
                       ),
                       const SizedBox(height: AppSpacing.lg),
+                      // CorrectAnswersCard shows X / totalQuestions correct.
                       CorrectAnswersCard(
-                        correctAnswers: _correctAnswers,
+                        score: _rxCorrectAnswers,
                         totalQuestions: _totalQuestions,
                       ),
                       const SizedBox(height: 48),
@@ -173,7 +212,7 @@ class _ResultPageState extends State<ResultPage> {
               )
             : const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: [
+                children: <Widget>[
                   Text(
                     'Back to Home',
                     style: TextStyle(

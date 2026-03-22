@@ -22,34 +22,31 @@ class QuizController extends GetxController {
   final RxInt timeLeft = questionTimeSeconds.obs;
   Timer? _timer;
   DateTime? _quizStartTime;
+
+  // Two-flag guard:
+  // _finishQuizStarted → set true the moment finishQuiz() is entered (prevents re-entry).
+  // isFinishing        → observable shown to UI as "Saving results…" overlay.
   bool _finishQuizStarted = false;
+  final RxBool isFinishing = false.obs;
   bool _nextScheduled = false;
-
-  QuizController();
-
-  void _parseArguments() {
-    final args = Get.arguments;
-    if (args is Map<String, dynamic>) {
-      categoryId = args['categoryId'] as int?;
-      categoryName.value = args['categoryName'] as String?;
-      categoryEmoji.value = args['categoryEmoji'] as String?;
-    }
-  }
 
   final RxList<QuestionModel> questions = <QuestionModel>[].obs;
   final RxInt currentIndex = 0.obs;
+
+  // score = raw correct-answer count (0–N). Used for "X/10 correct" display.
   final RxInt score = 0.obs;
+
+  // earnedPoints = actual leaderboard points (10 pts/correct + speed bonus).
   final RxInt earnedPoints = 0.obs;
+
   final RxnString selectedAnswer = RxnString();
   final RxBool isLoading = false.obs;
   final RxnString errorMessage = RxnString();
   final RxBool hasAnswered = false.obs;
-  final RxBool isFinishing = false.obs;
 
   QuestionModel get currentQuestion => questions[currentIndex.value];
   bool get isLastQuestion => currentIndex.value == questions.length - 1;
   int get totalQuestions => questions.length;
-
   int get correctAnswers => score.value;
 
   @override
@@ -59,11 +56,20 @@ class QuizController extends GetxController {
     loadQuestions();
   }
 
+  void _parseArguments() {
+    final dynamic args = Get.arguments;
+    if (args is Map<String, dynamic>) {
+      categoryId = args['categoryId'] as int?;
+      categoryName.value = args['categoryName'] as String?;
+      categoryEmoji.value = args['categoryEmoji'] as String?;
+    }
+  }
+
   Future<void> loadQuestions() async {
     _timer?.cancel();
     _finishQuizStarted = false;
-    _nextScheduled = false;
     isFinishing.value = false;
+    _nextScheduled = false;
     isLoading.value = true;
     errorMessage.value = null;
     _quizStartTime = null;
@@ -90,7 +96,7 @@ class QuizController extends GetxController {
     _timer?.cancel();
     _nextScheduled = false;
     timeLeft.value = questionTimeSeconds;
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+    _timer = Timer.periodic(const Duration(seconds: 1), (Timer timer) {
       if (timeLeft.value > 0) {
         timeLeft.value--;
       } else {
@@ -110,9 +116,10 @@ class QuizController extends GetxController {
     selectedAnswer.value = answer;
     hasAnswered.value = true;
     if (currentQuestion.checkAnswer(answer)) {
+      // Correct: increment raw count and award points with speed bonus.
       score.value++;
-      final int timeBonus = ((timeLeft.value / questionTimeSeconds) * 5)
-          .round();
+      final int timeBonus =
+          ((timeLeft.value / questionTimeSeconds) * 5).round();
       earnedPoints.value += 10 + timeBonus;
     } else {
       HapticFeedback.vibrate();
@@ -123,10 +130,10 @@ class QuizController extends GetxController {
   void _scheduleNextQuestion() {
     if (_nextScheduled) return;
     _nextScheduled = true;
-    if (isLastQuestion && hasAnswered.value) {
-      isFinishing.value = true;
-    }
-    Future.delayed(const Duration(milliseconds: 1500), () {
+    // Do NOT set isFinishing here on the last question — that would replace
+    // the quiz UI before the user sees correct/wrong on the final answer.
+    // isFinishing is set only when finishQuiz() runs after the same 1.5s delay.
+    Future<void>.delayed(const Duration(milliseconds: 1500), () {
       if (!isClosed) {
         _nextScheduled = false;
         nextQuestion();
@@ -155,9 +162,11 @@ class QuizController extends GetxController {
     final AuthService authService = Get.find<AuthService>();
     final FirestoreService firestoreService = Get.find<FirestoreService>();
     final User? user = authService.currentUser;
+
+    // Snapshot all values before any async gap.
     final int finalEarnedPoints = earnedPoints.value;
+    final int finalCorrectAnswers = score.value;
     final int totalQuestionCount = questions.length;
-    final int finalCorrectAnswers = correctAnswers;
     final String finalCategoryName = categoryName.value ?? '';
     final String finalCategoryEmoji = categoryEmoji.value ?? '';
     final int completionMs = _quizStartTime == null
@@ -166,6 +175,8 @@ class QuizController extends GetxController {
 
     if (user != null) {
       try {
+        // saveScore must complete first — it writes the aggregate document
+        // that saveCategoryScore and saveQuizHistory do NOT depend on.
         await firestoreService.saveScore(
           uid: user.uid,
           email: user.email ?? 'unknown@unknown.com',
@@ -174,10 +185,12 @@ class QuizController extends GetxController {
           totalQuestions: totalQuestionCount,
           completionMs: completionMs,
           displayName:
-              user.displayName ?? (user.email?.split('@').first ?? 'Unknown'),
+              user.displayName ??
+              (user.email?.split('@').first ?? 'Unknown'),
         );
 
-        await Future.wait(<Future<void>>[
+        // saveCategoryScore and saveQuizHistory are independent — run in parallel.
+        await Future.wait<void>(<Future<void>>[
           if (categoryId != null)
             firestoreService.saveCategoryScore(
               uid: user.uid,
@@ -206,6 +219,7 @@ class QuizController extends GetxController {
       }
     }
 
+    // All Firestore writes are complete. Navigate to result.
     Get.offNamed(
       AppRoutes.result,
       arguments: <String, dynamic>{

@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:quiz_app/core/constants/app_colors.dart';
 import 'package:quiz_app/core/constants/app_spacing.dart';
 
 class CorrectAnswersCard extends StatelessWidget {
   const CorrectAnswersCard({
-    required this.correctAnswers,
+    required this.score,
     required this.totalQuestions,
     super.key,
   });
 
-  final int correctAnswers;
+  /// Raw correct-answer count (0–N).
+  final RxInt score;
+
   final int totalQuestions;
 
   @override
@@ -19,7 +22,7 @@ class CorrectAnswersCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [
+        boxShadow: <BoxShadow>[
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 15,
@@ -29,7 +32,7 @@ class CorrectAnswersCard extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+        children: <Widget>[
           Text(
             'CORRECT ANSWERS',
             style: TextStyle(
@@ -40,24 +43,26 @@ class CorrectAnswersCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.md),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(
-                '$correctAnswers',
-                style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textDarkest,
+          Obx(
+            () => Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: <Widget>[
+                Text(
+                  '${score.value}',
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textDarkest,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                '/ $totalQuestions',
-                style: TextStyle(fontSize: 16, color: Colors.grey.shade400),
-              ),
-            ],
+                const SizedBox(width: 4),
+                Text(
+                  '/ $totalQuestions',
+                  style: TextStyle(fontSize: 16, color: Colors.grey.shade400),
+                ),
+              ],
+            ),
           ),
         ],
       ),

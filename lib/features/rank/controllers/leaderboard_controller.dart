@@ -24,7 +24,7 @@ class LeaderboardController extends GetxController {
     fetchLeaderboard();
   }
 
-  Future<void> fetchLeaderboard() async {
+  Future<void> fetchLeaderboard({bool forceServer = false}) async {
     isLoading.value = true;
     errorMessage.value = null;
     try {
@@ -35,6 +35,7 @@ class LeaderboardController extends GetxController {
             await _firestoreService.getLeaderboardBundle(
           uid: uid,
           displayLimit: 50,
+          forceServer: forceServer,
         );
         scores.assignAll(bundle['topScores'] as List<Map<String, dynamic>>);
         userScoreDoc.value = bundle['userScoreDoc'] as Map<String, dynamic>?;
@@ -42,7 +43,7 @@ class LeaderboardController extends GetxController {
         totalRankedUsers.value = bundle['totalRanked'] as int;
       } else {
         final List<Map<String, dynamic>> top =
-            await _firestoreService.getTopScores(limit: 50);
+            await _firestoreService.getTopScores(limit: 50, forceServer: forceServer);
         scores.assignAll(top);
         totalRankedUsers.value = top.length;
         userScoreDoc.value = null;
@@ -56,6 +57,8 @@ class LeaderboardController extends GetxController {
       isLoading.value = false;
     }
   }
+
+  Future<void> fetchLeaderboardAfterQuiz() => fetchLeaderboard(forceServer: true);
 
   String _buildErrorMessage(FirebaseException error) {
     switch (error.code) {

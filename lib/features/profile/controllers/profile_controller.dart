@@ -42,7 +42,7 @@ class ProfileController extends GetxController {
     loadProfileData();
   }
 
-  Future<void> loadProfileData() async {
+  Future<void> loadProfileData({bool forceServer = false}) async {
     final int gen = ++_loadGen;
     isLoading.value = true;
     isLoadingBadges.value = true;
@@ -52,6 +52,7 @@ class ProfileController extends GetxController {
 
       final Map<String, dynamic> stats = await _firestoreService.getUserStats(
         uid,
+        forceServer: forceServer,
       );
       if (gen != _loadGen) return;
       totalPlayed.value = (stats['totalPlayed'] as num?)?.toInt() ?? 0;
@@ -80,5 +81,5 @@ class ProfileController extends GetxController {
     }
   }
 
-  Future<void> refreshAfterQuiz() => loadProfileData();
+  Future<void> refreshAfterQuiz() => loadProfileData(forceServer: true);
 }
