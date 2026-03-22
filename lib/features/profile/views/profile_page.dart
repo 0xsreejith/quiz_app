@@ -163,11 +163,10 @@ class ProfilePage extends StatelessWidget {
           title: 'ACCOUNT ARCHITECTURE',
           padding: EdgeInsets.only(left: 4, bottom: 14),
         ),
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.cardBg,
-            borderRadius: BorderRadius.circular(AppSpacing.cardRadiusLarge),
-          ),
+        Material(
+          color: AppColors.cardBg,
+          borderRadius: BorderRadius.circular(AppSpacing.cardRadiusLarge),
+          clipBehavior: Clip.antiAlias,
           child: const Column(
             children: <Widget>[
               SettingsTile(

@@ -24,6 +24,7 @@ class CategoriesPage extends GetView<CategoriesController> {
             final category = controller.categories[index];
             return CategoryCard(
               category: category,
+              icon: Icons.category,
               onTap: () => Get.toNamed(
                 '/quiz',
                 arguments: {

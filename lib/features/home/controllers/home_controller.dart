@@ -7,6 +7,15 @@ import 'package:quiz_app/routes/app_routes.dart';
 class HomeController extends GetxController {
   final RxList<TopPerformer> topPerformers = <TopPerformer>[].obs;
   final RxBool isLoading = true.obs;
+  final RxString searchQuery = ''.obs;
+
+  List<CategoryModel> get filteredCategories {
+    final String query = searchQuery.value.trim().toLowerCase();
+    if (query.isEmpty) return TriviaCategories.all;
+    return TriviaCategories.all
+        .where((CategoryModel c) => c.name.toLowerCase().contains(query))
+        .toList();
+  }
 
   @override
   void onInit() {
