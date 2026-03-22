@@ -177,33 +177,30 @@ class FirestoreService {
     await _syncUserDocFromScoreDoc(uid: uid);
   }
 
-  Future<List<Map<String, dynamic>>> getTopScores({
-    int limit = 10,
-    bool fromServer = false,
-  }) async {
-    return _getUniqueScores(limit: limit, fromServer: fromServer);
+  Future<List<Map<String, dynamic>>> getTopScores({int limit = 10}) async {
+    return _getUniqueScores(limit: limit);
   }
 
-  /// Returns leaderboard display data, the signed-in user's score document,
-  /// authoritative global rank, and the total ranked user count in one fetch.
-  Future<Map<String, dynamic>> getLeaderboardData({
+  /// Single-fetch method that returns everything the leaderboard needs.
+  /// Fetches scores once, computes rank, user doc, and total count from
+  /// the same sorted list — guaranteeing consistency.
+  Future<Map<String, dynamic>> getLeaderboardBundle({
     required String uid,
     int displayLimit = 50,
-    bool fromServer = false,
   }) async {
-    final List<Map<String, dynamic>> allScores =
-        await _getUniqueScores(fromServer: fromServer);
+    final List<Map<String, dynamic>> allScores = await _getUniqueScores();
+
     final int userIndex = allScores.indexWhere(
-      (Map<String, dynamic> score) =>
-          score['uid'] == uid || score['docId'] == uid,
+      (Map<String, dynamic> s) => s['uid'] == uid || s['docId'] == uid,
     );
+
     final int userRank = userIndex == -1 ? 0 : userIndex + 1;
-    final Map<String, dynamic>? userScoreDoc = userIndex == -1
-        ? null
-        : allScores[userIndex];
+    final Map<String, dynamic>? userScoreDoc =
+        userIndex == -1 ? null : allScores[userIndex];
+
     final List<Map<String, dynamic>> topScores = allScores.length > displayLimit
         ? allScores.sublist(0, displayLimit)
-        : allScores;
+        : List<Map<String, dynamic>>.from(allScores);
 
     return <String, dynamic>{
       'topScores': topScores,
@@ -211,6 +208,14 @@ class FirestoreService {
       'userRank': userRank,
       'totalRanked': allScores.length,
     };
+  }
+
+  /// Returns leaderboard display data from a single underlying fetch.
+  Future<Map<String, dynamic>> getLeaderboardData({
+    required String uid,
+    int displayLimit = 50,
+  }) async {
+    return getLeaderboardBundle(uid: uid, displayLimit: displayLimit);
   }
 
   /// Fetch the signed-in user's own score document directly.
@@ -281,7 +286,8 @@ class FirestoreService {
     final int newBestCorrectAnswers = correctAnswers > currentBestCorrectAnswers
         ? correctAnswers
         : currentBestCorrectAnswers;
-    final String badge = _calculateBadge(newBestCorrectAnswers, totalQuestions);
+    final String badge =
+        _calculateBadge(newBestCorrectAnswers, totalQuestions);
 
     await ref.set(<String, dynamic>{
       'categoryId': categoryId,
@@ -295,9 +301,9 @@ class FirestoreService {
     }, SetOptions(merge: true));
   }
 
-  String _calculateBadge(int maxScore, int totalQuestions) {
+  String _calculateBadge(int correctAnswers, int totalQuestions) {
     if (totalQuestions == 0) return 'none';
-    final double percent = maxScore / totalQuestions;
+    final double percent = correctAnswers / totalQuestions;
     if (percent >= 0.9) return 'gold';
     if (percent >= 0.7) return 'silver';
     if (percent >= 0.5) return 'bronze';
@@ -346,19 +352,13 @@ class FirestoreService {
     return badges;
   }
 
-  Future<List<Map<String, dynamic>>> getCategoryScores(
-    String uid, {
-    bool fromServer = false,
-  }) async {
-    final GetOptions opts = fromServer
-        ? const GetOptions(source: Source.server)
-        : const GetOptions();
+  Future<List<Map<String, dynamic>>> getCategoryScores(String uid) async {
     final QuerySnapshot<Map<String, dynamic>> snapshot = await _firestore
         .collection('users')
         .doc(uid)
         .collection('categoryScores')
         .orderBy('maxScore', descending: true)
-        .get(opts);
+        .get();
 
     return snapshot.docs
         .map((QueryDocumentSnapshot<Map<String, dynamic>> doc) => doc.data())
@@ -390,36 +390,24 @@ class FirestoreService {
         });
   }
 
-  Future<List<Map<String, dynamic>>> getQuizHistory(
-    String uid, {
-    bool fromServer = false,
-  }) async {
-    final GetOptions opts = fromServer
-        ? const GetOptions(source: Source.server)
-        : const GetOptions();
+  Future<List<Map<String, dynamic>>> getQuizHistory(String uid) async {
     final QuerySnapshot<Map<String, dynamic>> snapshot = await _firestore
         .collection('users')
         .doc(uid)
         .collection('quizHistory')
         .orderBy('playedAt', descending: true)
         .limit(20)
-        .get(opts);
+        .get();
     return snapshot.docs
         .map((QueryDocumentSnapshot<Map<String, dynamic>> doc) => doc.data())
         .toList();
   }
 
-  Future<Map<String, dynamic>> getUserStats(
-    String uid, {
-    bool fromServer = false,
-  }) async {
-    final GetOptions opts = fromServer
-        ? const GetOptions(source: Source.server)
-        : const GetOptions();
+  Future<Map<String, dynamic>> getUserStats(String uid) async {
     final List<DocumentSnapshot<Map<String, dynamic>>> snapshots =
         await Future.wait<DocumentSnapshot<Map<String, dynamic>>>([
-          _firestore.collection('users').doc(uid).get(opts),
-          _firestore.collection('scores').doc(uid).get(opts),
+          _firestore.collection('users').doc(uid).get(),
+          _firestore.collection('scores').doc(uid).get(),
         ]);
 
     final DocumentSnapshot<Map<String, dynamic>> userSnap = snapshots[0];
@@ -471,16 +459,6 @@ class FirestoreService {
         scoreData['globalBadge'] as String? ??
         userData['globalBadge'] as String? ??
         _calculateGlobalBadge(totalScore);
-
-    // Sync user doc if needed
-    if (hasScoreDoc &&
-        (!userSnap.exists ||
-            (_readInt(userData['totalPlayed']) ?? 0) != totalPlayed ||
-            (_readInt(userData['totalScore']) ?? 0) != totalScore ||
-            _readDouble(userData['avgAccuracy']).round() != avgAccuracy ||
-            (userData['globalBadge'] as String? ?? '') != globalBadge)) {
-      await _syncUserDocFromScoreDoc(uid: uid);
-    }
 
     return <String, dynamic>{
       'totalPlayed': totalPlayed,
@@ -552,33 +530,24 @@ class FirestoreService {
     }
   }
 
-  Future<List<Map<String, dynamic>>> _getUniqueScores({
-    int? limit,
-    bool fromServer = false,
-  }) async {
+  Future<List<Map<String, dynamic>>> _getUniqueScores({int? limit}) async {
     final int fetchLimit = limit == null
         ? _scoreQueryLimit
         : (limit * 5).clamp(limit, _scoreQueryLimit);
-
-    final GetOptions opts = fromServer
-        ? const GetOptions(source: Source.server)
-        : const GetOptions();
 
     try {
       final QuerySnapshot<Map<String, dynamic>> snapshot = await _firestore
           .collection('scores')
           .orderBy('totalScore', descending: true)
           .limit(fetchLimit)
-          .get(opts);
+          .get();
 
-      final List<Map<String, dynamic>> uniqueScores = _collectUniqueScores(
-        snapshot.docs,
-      )..sort(_compareScoreDocs);
+      final List<Map<String, dynamic>> uniqueScores =
+          _collectUniqueScores(snapshot.docs)..sort(_compareScoreDocs);
 
       if (limit != null && uniqueScores.length > limit) {
-        return uniqueScores.take(limit).toList();
+        return uniqueScores.sublist(0, limit);
       }
-
       return uniqueScores;
     } on FirebaseException {
       rethrow;
