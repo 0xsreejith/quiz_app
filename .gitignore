@@ -93,3 +93,5 @@ skills/
 full_codebase_dump4.txt
 codebase_dump.txt
 firestore.rules
+android/.kotlin/
+*.salive
