@@ -177,8 +177,11 @@ class FirestoreService {
     await _syncUserDocFromScoreDoc(uid: uid);
   }
 
-  Future<List<Map<String, dynamic>>> getTopScores({int limit = 10}) async {
-    return _getUniqueScores(limit: limit);
+  Future<List<Map<String, dynamic>>> getTopScores({
+    int limit = 10,
+    bool fromServer = false,
+  }) async {
+    return _getUniqueScores(limit: limit, fromServer: fromServer);
   }
 
   /// Returns leaderboard display data, the signed-in user's score document,
@@ -186,8 +189,10 @@ class FirestoreService {
   Future<Map<String, dynamic>> getLeaderboardData({
     required String uid,
     int displayLimit = 50,
+    bool fromServer = false,
   }) async {
-    final List<Map<String, dynamic>> allScores = await _getUniqueScores();
+    final List<Map<String, dynamic>> allScores =
+        await _getUniqueScores(fromServer: fromServer);
     final int userIndex = allScores.indexWhere(
       (Map<String, dynamic> score) =>
           score['uid'] == uid || score['docId'] == uid,
@@ -341,13 +346,19 @@ class FirestoreService {
     return badges;
   }
 
-  Future<List<Map<String, dynamic>>> getCategoryScores(String uid) async {
+  Future<List<Map<String, dynamic>>> getCategoryScores(
+    String uid, {
+    bool fromServer = false,
+  }) async {
+    final GetOptions opts = fromServer
+        ? const GetOptions(source: Source.server)
+        : const GetOptions();
     final QuerySnapshot<Map<String, dynamic>> snapshot = await _firestore
         .collection('users')
         .doc(uid)
         .collection('categoryScores')
         .orderBy('maxScore', descending: true)
-        .get();
+        .get(opts);
 
     return snapshot.docs
         .map((QueryDocumentSnapshot<Map<String, dynamic>> doc) => doc.data())
@@ -379,24 +390,36 @@ class FirestoreService {
         });
   }
 
-  Future<List<Map<String, dynamic>>> getQuizHistory(String uid) async {
+  Future<List<Map<String, dynamic>>> getQuizHistory(
+    String uid, {
+    bool fromServer = false,
+  }) async {
+    final GetOptions opts = fromServer
+        ? const GetOptions(source: Source.server)
+        : const GetOptions();
     final QuerySnapshot<Map<String, dynamic>> snapshot = await _firestore
         .collection('users')
         .doc(uid)
         .collection('quizHistory')
         .orderBy('playedAt', descending: true)
         .limit(20)
-        .get();
+        .get(opts);
     return snapshot.docs
         .map((QueryDocumentSnapshot<Map<String, dynamic>> doc) => doc.data())
         .toList();
   }
 
-  Future<Map<String, dynamic>> getUserStats(String uid) async {
+  Future<Map<String, dynamic>> getUserStats(
+    String uid, {
+    bool fromServer = false,
+  }) async {
+    final GetOptions opts = fromServer
+        ? const GetOptions(source: Source.server)
+        : const GetOptions();
     final List<DocumentSnapshot<Map<String, dynamic>>> snapshots =
         await Future.wait<DocumentSnapshot<Map<String, dynamic>>>([
-          _firestore.collection('users').doc(uid).get(),
-          _firestore.collection('scores').doc(uid).get(),
+          _firestore.collection('users').doc(uid).get(opts),
+          _firestore.collection('scores').doc(uid).get(opts),
         ]);
 
     final DocumentSnapshot<Map<String, dynamic>> userSnap = snapshots[0];
@@ -529,17 +552,24 @@ class FirestoreService {
     }
   }
 
-  Future<List<Map<String, dynamic>>> _getUniqueScores({int? limit}) async {
+  Future<List<Map<String, dynamic>>> _getUniqueScores({
+    int? limit,
+    bool fromServer = false,
+  }) async {
     final int fetchLimit = limit == null
         ? _scoreQueryLimit
         : (limit * 5).clamp(limit, _scoreQueryLimit);
+
+    final GetOptions opts = fromServer
+        ? const GetOptions(source: Source.server)
+        : const GetOptions();
 
     try {
       final QuerySnapshot<Map<String, dynamic>> snapshot = await _firestore
           .collection('scores')
           .orderBy('totalScore', descending: true)
           .limit(fetchLimit)
-          .get();
+          .get(opts);
 
       final List<Map<String, dynamic>> uniqueScores = _collectUniqueScores(
         snapshot.docs,

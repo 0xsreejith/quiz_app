@@ -137,32 +137,45 @@ class ResultPage extends StatelessWidget {
   }
 
   Future<void> _goHome() async {
-    if (Get.isRegistered<HomeController>()) {
-      await Get.find<HomeController>().refreshAfterQuiz();
-    }
-    await _refreshShellData();
-    Get.offAllNamed(AppRoutes.appShell);
+    // Replace the route stack first; the previous shell controllers were
+    // disposed, so refreshing before navigation updated nothing visible.
+    await Get.offAllNamed(AppRoutes.appShell);
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    await _refreshShellDataAfterQuiz();
   }
 
-  Future<void> _refreshShellData() async {
-    await _safeRefresh<HistoryController>((HistoryController controller) {
-      return controller.refreshHistory();
-    });
-    await _safeRefresh<ProfileController>((ProfileController controller) {
-      return controller.refreshAfterQuiz();
-    });
-    await _safeRefresh<LeaderboardController>((
-      LeaderboardController controller,
-    ) {
-      return controller.fetchLeaderboard();
-    });
+  /// Pulls authoritative totals from the server so home, rank, profile, and
+  /// history match the quiz that just finished.
+  Future<void> _refreshShellDataAfterQuiz() async {
+    await Future.wait<void>(<Future<void>>[
+      _runRefresh(() async {
+        if (Get.isRegistered<HomeController>()) {
+          await Get.find<HomeController>().refreshAfterQuiz();
+        }
+      }),
+      _runRefresh(() async {
+        if (Get.isRegistered<ProfileController>()) {
+          await Get.find<ProfileController>().loadProfileData(fromServer: true);
+        }
+      }),
+      _runRefresh(() async {
+        if (Get.isRegistered<LeaderboardController>()) {
+          await Get.find<LeaderboardController>().fetchLeaderboard(
+            fromServer: true,
+          );
+        }
+      }),
+      _runRefresh(() async {
+        if (Get.isRegistered<HistoryController>()) {
+          await Get.find<HistoryController>().loadHistory(fromServer: true);
+        }
+      }),
+    ]);
   }
 
-  Future<void> _safeRefresh<T>(
-    Future<void> Function(T controller) action,
-  ) async {
+  Future<void> _runRefresh(Future<void> Function() fn) async {
     try {
-      await action(Get.find<T>());
+      await fn();
     } catch (_) {}
   }
 }

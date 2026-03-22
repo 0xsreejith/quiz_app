@@ -18,6 +18,8 @@ class ProfileController extends GetxController {
   final RxList<Map<String, dynamic>> categoryScores =
       <Map<String, dynamic>>[].obs;
 
+  int _loadGen = 0;
+
   String get email => _authService.currentUser?.email ?? '';
   String get displayName => email.split('@').first.toUpperCase();
 
@@ -40,7 +42,8 @@ class ProfileController extends GetxController {
     loadProfileData();
   }
 
-  Future<void> loadProfileData() async {
+  Future<void> loadProfileData({bool fromServer = false}) async {
+    final int gen = ++_loadGen;
     isLoading.value = true;
     isLoadingBadges.value = true;
     try {
@@ -49,7 +52,9 @@ class ProfileController extends GetxController {
 
       final Map<String, dynamic> stats = await _firestoreService.getUserStats(
         uid,
+        fromServer: fromServer,
       );
+      if (gen != _loadGen) return;
       totalPlayed.value = (stats['totalPlayed'] as num?)?.toInt() ?? 0;
       totalScore.value = (stats['totalScore'] as num?)?.toInt() ?? 0;
       bestScore.value = (stats['bestScore'] as num?)?.toInt() ?? 0;
@@ -63,15 +68,18 @@ class ProfileController extends GetxController {
       );
 
       final List<Map<String, dynamic>> catScores = await _firestoreService
-          .getCategoryScores(uid);
+          .getCategoryScores(uid, fromServer: fromServer);
+      if (gen != _loadGen) return;
       categoryScores.assignAll(catScores);
     } catch (e) {
       debugPrint('Error loading profile data: $e');
     } finally {
-      isLoading.value = false;
-      isLoadingBadges.value = false;
+      if (gen == _loadGen) {
+        isLoading.value = false;
+        isLoadingBadges.value = false;
+      }
     }
   }
 
-  Future<void> refreshAfterQuiz() => loadProfileData();
+  Future<void> refreshAfterQuiz() => loadProfileData(fromServer: true);
 }
