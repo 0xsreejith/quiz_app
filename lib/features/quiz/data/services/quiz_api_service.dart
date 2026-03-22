@@ -11,11 +11,11 @@ class QuizApiService {
     int? categoryId,
     String? difficulty,
   }) async {
-    final Map<String, String> params = {
+    final Map<String, dynamic> params = <String, dynamic>{
       'amount': amount.toString(),
       'type': 'multiple',
-      if (categoryId != null) 'category': categoryId.toString(),
-      if (difficulty != null) 'difficulty': difficulty,
+      'category': ?categoryId?.toString(),
+      'difficulty': ?difficulty,
     };
     final Uri url = Uri.parse(_baseUrl).replace(queryParameters: params);
     final http.Response response = await http.get(url);
@@ -33,10 +33,7 @@ class QuizApiService {
 
     final List<dynamic> results = data['results'] as List<dynamic>;
     return results
-        .map(
-          (dynamic e) =>
-              QuestionModel.fromJson(e as Map<String, dynamic>),
-        )
+        .map((dynamic e) => QuestionModel.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 }

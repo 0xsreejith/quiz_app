@@ -34,7 +34,8 @@ class SectionTitleRow extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: 4),
             child: Text(
               label,
-              style: labelStyle ??
+              style:
+                  labelStyle ??
                   const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
@@ -48,7 +49,8 @@ class SectionTitleRow extends StatelessWidget {
             Expanded(
               child: Text(
                 title,
-                style: titleStyle ??
+                style:
+                    titleStyle ??
                     const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w800,

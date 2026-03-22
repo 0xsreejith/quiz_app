@@ -10,19 +10,15 @@ class HistoryController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxString errorMessage = ''.obs;
 
-  int get totalPlayed => quizHistory.length;
+  /// Authoritative stats from the user-stats document (not the capped list).
+  final RxInt totalPlayedStat = 0.obs;
+  final RxInt avgAccuracyStat = 0.obs;
+
   int get bestScore => quizHistory.isEmpty
       ? 0
       : quizHistory
           .map((Map<String, dynamic> h) => h['score'] as int? ?? 0)
           .reduce((int a, int b) => a > b ? a : b);
-  int get avgAccuracy => quizHistory.isEmpty
-      ? 0
-      : (quizHistory
-                  .map((Map<String, dynamic> h) => h['accuracy'] as int? ?? 0)
-                  .reduce((int a, int b) => a + b) /
-              quizHistory.length)
-          .round();
 
   @override
   void onInit() {
@@ -36,12 +32,21 @@ class HistoryController extends GetxController {
     try {
       final String? uid = _authService.currentUser?.uid;
       if (uid == null) {
+        isLoading.value = false;
         errorMessage.value = 'Not logged in';
         return;
       }
-      final List<Map<String, dynamic>> data =
-          await _firestoreService.getQuizHistory(uid);
-      quizHistory.assignAll(data);
+
+      final List<Object> results = await Future.wait(<Future<Object>>[
+        _firestoreService.getQuizHistory(uid),
+        _firestoreService.getUserStats(uid),
+      ]);
+
+      quizHistory.assignAll(results[0] as List<Map<String, dynamic>>);
+
+      final Map<String, dynamic> stats = results[1] as Map<String, dynamic>;
+      totalPlayedStat.value = stats['totalPlayed'] as int? ?? 0;
+      avgAccuracyStat.value = stats['avgAccuracy'] as int? ?? 0;
     } catch (e) {
       errorMessage.value = e.toString();
     } finally {

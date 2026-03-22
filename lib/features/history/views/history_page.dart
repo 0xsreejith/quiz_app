@@ -255,7 +255,7 @@ class HistoryPage extends GetView<HistoryController> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text('${controller.avgAccuracy}%',
+              Text('${controller.avgAccuracyStat.value}%',
                   style: AppTextStyles.heroNumber(color: AppColors.darkNavy)),
               const Spacer(),
               Container(
@@ -282,7 +282,7 @@ class HistoryPage extends GetView<HistoryController> {
                 ),
               ),
               FractionallySizedBox(
-                widthFactor: controller.avgAccuracy / 100,
+                widthFactor: controller.avgAccuracyStat.value / 100,
                 child: Container(
                   height: 4,
                   decoration: BoxDecoration(
@@ -311,7 +311,7 @@ class HistoryPage extends GetView<HistoryController> {
           Text('QUIZZES COMPLETED',
               style: AppTextStyles.miniLabel(color: Colors.white70)),
           AppSpacing.verticalLg,
-          Text('${controller.totalPlayed}',
+          Text('${controller.totalPlayedStat.value}',
               style: AppTextStyles.heroNumber(color: Colors.white)),
           AppSpacing.verticalXxl,
           Text(

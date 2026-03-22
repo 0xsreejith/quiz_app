@@ -10,24 +10,11 @@ class LeaderboardController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxnString errorMessage = RxnString();
 
-  int get currentUserRank {
-    final String? uid = _authService.currentUser?.uid;
-    if (uid == null) return 0;
-    final int idx = scores.indexWhere(
-        (Map<String, dynamic> s) => s['uid'] == uid);
-    return idx == -1 ? 0 : idx + 1;
-  }
+  /// The signed-in user's own score document (fetched separately).
+  final Rxn<Map<String, dynamic>> userScoreDoc = Rxn<Map<String, dynamic>>();
 
-  Map<String, dynamic>? get currentUserScore {
-    final String? uid = _authService.currentUser?.uid;
-    if (uid == null) return null;
-    try {
-      return scores.firstWhere(
-          (Map<String, dynamic> s) => s['uid'] == uid);
-    } catch (_) {
-      return null;
-    }
-  }
+  /// The user's authoritative global rank (not limited to top-50).
+  final RxInt userGlobalRank = 0.obs;
 
   @override
   void onInit() {
@@ -39,9 +26,23 @@ class LeaderboardController extends GetxController {
     isLoading.value = true;
     errorMessage.value = null;
     try {
-      final List<Map<String, dynamic>> result =
-          await _firestoreService.getTopScores(limit: 50);
-      scores.assignAll(result);
+      final String? uid = _authService.currentUser?.uid;
+
+      if (uid != null) {
+        final List<Object?> results = await Future.wait(<Future<Object?>>[
+          _firestoreService.getTopScores(limit: 50),
+          _firestoreService.getUserScoreDoc(uid),
+          _firestoreService.getUserGlobalRank(uid),
+        ]);
+
+        scores.assignAll(results[0] as List<Map<String, dynamic>>);
+        userScoreDoc.value = results[1] as Map<String, dynamic>?;
+        userGlobalRank.value = results[2] as int;
+      } else {
+        final List<Map<String, dynamic>> result =
+            await _firestoreService.getTopScores(limit: 50);
+        scores.assignAll(result);
+      }
     } on Exception catch (e) {
       errorMessage.value = e.toString();
     } finally {

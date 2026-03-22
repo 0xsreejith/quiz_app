@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'package:quiz_app/core/services/auth_service.dart';
 import 'package:quiz_app/core/services/firestore_service.dart';
+import 'package:quiz_app/features/app_shell/controllers/app_shell_controller.dart';
 import 'package:quiz_app/features/home/data/models/category_model.dart';
 import 'package:quiz_app/features/home/data/models/home_models.dart';
 import 'package:quiz_app/routes/app_routes.dart';
@@ -35,10 +36,7 @@ class HomeController extends GetxController {
     isLoading.value = true;
     errorMessage.value = '';
     try {
-      await Future.wait(<Future<void>>[
-        _loadTopPerformers(),
-        _loadUserStats(),
-      ]);
+      await Future.wait(<Future<void>>[_loadTopPerformers(), _loadUserStats()]);
     } catch (e) {
       errorMessage.value = e.toString();
     } finally {
@@ -47,29 +45,34 @@ class HomeController extends GetxController {
   }
 
   Future<void> _loadTopPerformers() async {
-    final List<Map<String, dynamic>> result =
-        await _firestoreService.getTopScores(limit: 3);
+    final List<Map<String, dynamic>> result = await _firestoreService
+        .getTopScores(limit: 3);
     final String uid = _authService.currentUser?.uid ?? '';
-    topPerformers.value = result.asMap().entries.map((MapEntry<int, Map<String, dynamic>> entry) {
+    topPerformers.value = result.asMap().entries.map((
+      MapEntry<int, Map<String, dynamic>> entry,
+    ) {
       final int i = entry.key;
       final Map<String, dynamic> s = entry.value;
       final String email = s['email'] as String? ?? '';
+      final String? displayName = s['displayName'] as String?;
       return TopPerformer(
         id: s['uid'] as String? ?? '$i',
-        name: email.split('@').first,
+        name: displayName != null && displayName.trim().isNotEmpty
+            ? displayName.trim()
+            : email.split('@').first,
         level: 1,
         title: i == 0
             ? 'Top Scorer'
             : i == 1
-                ? 'Runner Up'
-                : 'Top 3',
+            ? 'Runner Up'
+            : 'Top 3',
         points: s['score'] as int? ?? 0,
         avatarUrl: '',
         badge: i == 0
             ? '🏆'
             : i == 1
-                ? '🥈'
-                : '🥉',
+            ? '🥈'
+            : '🥉',
         isCurrentUser: s['uid'] == uid,
       );
     }).toList();
@@ -78,14 +81,28 @@ class HomeController extends GetxController {
   Future<void> _loadUserStats() async {
     final String? uid = _authService.currentUser?.uid;
     if (uid == null) return;
-    final Map<String, dynamic> stats =
-        await _firestoreService.getUserStats(uid);
+    final Map<String, dynamic> stats = await _firestoreService.getUserStats(
+      uid,
+    );
     userBestScore.value = stats['bestScore'] as int? ?? 0;
     userTotalPlayed.value = stats['totalPlayed'] as int? ?? 0;
   }
 
   void navigateToProfile(String userId) {
-    Get.toNamed('/profile');
+    final String? currentUserId = _authService.currentUser?.uid;
+    if (currentUserId == null || userId != currentUserId) {
+      return;
+    }
+
+    if (Get.isRegistered<AppShellController>()) {
+      Get.find<AppShellController>().changeTab(4);
+    }
+  }
+
+  void navigateToLeaderboard() {
+    if (Get.isRegistered<AppShellController>()) {
+      Get.find<AppShellController>().changeTab(2);
+    }
   }
 
   void navigateToCategory(CategoryModel category) {

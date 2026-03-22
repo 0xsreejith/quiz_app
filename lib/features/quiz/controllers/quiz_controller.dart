@@ -117,6 +117,11 @@ class QuizController extends GetxController {
     final AuthService authService = Get.find<AuthService>();
     final FirestoreService firestoreService = Get.find<FirestoreService>();
     final User? user = authService.currentUser;
+    final int finalScore = score.value;
+    final int totalQuestionCount = questions.length;
+    final int finalCorrectAnswers = correctAnswers;
+    final String finalCategoryName = categoryName.value ?? '';
+    final String finalCategoryEmoji = categoryEmoji.value ?? '';
 
     if (user != null) {
       try {
@@ -124,7 +129,9 @@ class QuizController extends GetxController {
         await firestoreService.saveScore(
           uid: user.uid,
           email: user.email ?? 'Unknown',
-          score: score.value,
+          score: finalScore,
+          displayName:
+              user.displayName ?? (user.email?.split('@').first ?? 'Unknown'),
         );
 
         // Save to category scores
@@ -132,30 +139,36 @@ class QuizController extends GetxController {
           await firestoreService.saveCategoryScore(
             uid: user.uid,
             categoryId: categoryId!,
-            categoryName: categoryName.value ?? '',
-            categoryEmoji: categoryEmoji.value ?? '',
-            score: score.value,
-            totalQuestions: questions.length,
+            categoryName: finalCategoryName,
+            categoryEmoji: finalCategoryEmoji,
+            score: finalScore,
+            totalQuestions: totalQuestionCount,
           );
         }
 
         // Save to quiz history
         await firestoreService.saveQuizHistory(
           uid: user.uid,
-          categoryName: categoryName.value ?? 'General',
-          categoryEmoji: categoryEmoji.value ?? '📝',
-          score: score.value,
-          totalQuestions: questions.length,
-          correctAnswers: correctAnswers,
+          categoryName: finalCategoryName.isNotEmpty
+              ? finalCategoryName
+              : 'General',
+          categoryEmoji: finalCategoryEmoji.isNotEmpty
+              ? finalCategoryEmoji
+              : '📝',
+          score: finalScore,
+          totalQuestions: totalQuestionCount,
+          correctAnswers: finalCorrectAnswers,
         );
       } catch (e) {
         debugPrint('Error saving quiz results: $e');
       }
     }
 
-    Get.toNamed(AppRoutes.result);
+    Get.offNamed(
+      AppRoutes.result,
+      arguments: {'score': finalScore, 'totalQuestions': totalQuestionCount},
+    );
   }
-
 
   void goHome() {
     Get.offAllNamed(AppRoutes.appShell);

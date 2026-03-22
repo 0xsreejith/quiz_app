@@ -23,10 +23,12 @@ class ProfileController extends GetxController {
 
   Map<String, dynamic>? get dominantCategory {
     if (categoryScores.isEmpty) return null;
-    return categoryScores.reduce((Map<String, dynamic> a, Map<String, dynamic> b) =>
-        (a['totalAttempts'] as int? ?? 0) > (b['totalAttempts'] as int? ?? 0)
-            ? a
-            : b);
+    return categoryScores.reduce(
+      (Map<String, dynamic> a, Map<String, dynamic> b) =>
+          (a['totalAttempts'] as int? ?? 0) > (b['totalAttempts'] as int? ?? 0)
+          ? a
+          : b,
+    );
   }
 
   @override
@@ -42,14 +44,15 @@ class ProfileController extends GetxController {
       final String? uid = _authService.currentUser?.uid;
       if (uid == null) return;
 
-      final Map<String, dynamic> stats =
-          await _firestoreService.getUserStats(uid);
+      final Map<String, dynamic> stats = await _firestoreService.getUserStats(
+        uid,
+      );
       totalPlayed.value = stats['totalPlayed'] as int? ?? 0;
       bestScore.value = stats['bestScore'] as int? ?? 0;
       avgAccuracy.value = stats['avgAccuracy'] as int? ?? 0;
 
-      final List<Map<String, dynamic>> catScores =
-          await _firestoreService.getCategoryScores(uid);
+      final List<Map<String, dynamic>> catScores = await _firestoreService
+          .getCategoryScores(uid);
       categoryScores.assignAll(catScores);
     } catch (e) {
       debugPrint('Error loading profile data: $e');
@@ -58,4 +61,6 @@ class ProfileController extends GetxController {
       isLoadingBadges.value = false;
     }
   }
+
+  Future<void> refreshAfterQuiz() => loadProfileData();
 }

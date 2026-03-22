@@ -87,8 +87,9 @@ class LeaderboardPage extends GetView<LeaderboardController> {
                 ...topThree.asMap().entries.map((MapEntry<int, Map<String, dynamic>> entry) {
                   final int i = entry.key;
                   final Map<String, dynamic> s = entry.value;
+                  final String displayName = s['displayName'] as String? ?? '';
                   final String email = s['email'] as String? ?? 'User';
-                  final String name = email.split('@').first;
+                  final String name = displayName.isNotEmpty ? displayName : email.split('@').first;
                   final int scoreVal = s['score'] as int? ?? 0;
                   final List<Color> bgColors = <Color>[
                     Colors.teal[700]!,
@@ -140,8 +141,9 @@ class LeaderboardPage extends GetView<LeaderboardController> {
                   ...rest.asMap().entries.map((MapEntry<int, Map<String, dynamic>> entry) {
                     final int i = entry.key;
                     final Map<String, dynamic> s = entry.value;
+                    final String displayName = s['displayName'] as String? ?? '';
                     final String email = s['email'] as String? ?? 'User';
-                    final String name = email.split('@').first;
+                    final String name = displayName.isNotEmpty ? displayName : email.split('@').first;
                     final int scoreVal = s['score'] as int? ?? 0;
                     final String rankStr =
                         (i + 4).toString().padLeft(2, '0');
@@ -219,8 +221,8 @@ class LeaderboardPage extends GetView<LeaderboardController> {
   }
 
   Widget _buildYourPosition() {
-    final Map<String, dynamic>? userScore = controller.currentUserScore;
-    final int rank = controller.currentUserRank;
+    final Map<String, dynamic>? userScore = controller.userScoreDoc.value;
+    final int rank = controller.userGlobalRank.value;
 
     if (userScore == null) {
       return Column(
@@ -230,20 +232,19 @@ class LeaderboardPage extends GetView<LeaderboardController> {
               style: AppTextStyles.statLabel
                   .copyWith(letterSpacing: 1.5, color: AppColors.primary)),
           const SizedBox(height: 8),
-          YourPositionCard(
-            rank: '—',
+          _UnrankedPositionCard(
             name: 'Play a quiz to rank',
             subtitle: 'NOT RANKED YET',
             score: '0 PTS',
-            trend: '',
             avatarWidget: _buildInitialsAvatar('?', AppColors.chipBgBlue, AppColors.darkNavy),
           ),
         ],
       );
     }
 
+    final String displayName = userScore['displayName'] as String? ?? '';
     final String email = userScore['email'] as String? ?? '';
-    final String name = email.split('@').first;
+    final String name = displayName.isNotEmpty ? displayName : email.split('@').first;
     final int scoreVal = userScore['score'] as int? ?? 0;
 
     return Column(
@@ -308,6 +309,87 @@ class LeaderboardPage extends GetView<LeaderboardController> {
             fontSize: 14,
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _UnrankedPositionCard extends StatelessWidget {
+  const _UnrankedPositionCard({
+    required this.name,
+    required this.subtitle,
+    required this.score,
+    required this.avatarWidget,
+  });
+
+  final String name;
+  final String subtitle;
+  final String score;
+  final Widget avatarWidget;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: BoxDecoration(
+        color: AppColors.deepNavy,
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.3),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Row(
+        children: <Widget>[
+          const Text(
+            '—',
+            style: TextStyle(
+                color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(width: 16),
+          avatarWidget,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Text(
+                  name,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.7),
+                    fontSize: 10,
+                    letterSpacing: 1.0,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Text(
+                score,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

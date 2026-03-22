@@ -28,8 +28,11 @@ class HomePage extends GetView<HomeController> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.error_outline,
-                      color: AppColors.textMuted, size: 48),
+                  const Icon(
+                    Icons.error_outline,
+                    color: AppColors.textMuted,
+                    size: 48,
+                  ),
                   const SizedBox(height: 16),
                   const Text(
                     'Unable to load data',
@@ -99,10 +102,7 @@ class HomePage extends GetView<HomeController> {
                 SizedBox(height: 4),
                 Text(
                   'Test your knowledge across categories',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textMuted,
-                  ),
+                  style: TextStyle(fontSize: 14, color: AppColors.textMuted),
                 ),
               ],
             ),
@@ -188,32 +188,36 @@ class HomePage extends GetView<HomeController> {
           const SizedBox(width: 12),
           _StatChip(
             icon: Icons.emoji_events_outlined,
-            valueWidget: Obx(() => Text(
-                  controller.userBestScore.value > 0
-                      ? '${controller.userBestScore.value}'
-                      : '—',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFFD4AF37),
-                  ),
-                )),
+            valueWidget: Obx(
+              () => Text(
+                controller.userBestScore.value > 0
+                    ? '${controller.userBestScore.value}'
+                    : '—',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFFD4AF37),
+                ),
+              ),
+            ),
             label: 'Top Score',
             color: const Color(0xFFD4AF37),
           ),
           const SizedBox(width: 12),
           _StatChip(
             icon: Icons.play_circle_outline,
-            valueWidget: Obx(() => Text(
-                  controller.userTotalPlayed.value > 0
-                      ? '${controller.userTotalPlayed.value}'
-                      : '—',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.accentGreen,
-                  ),
-                )),
+            valueWidget: Obx(
+              () => Text(
+                controller.userTotalPlayed.value > 0
+                    ? '${controller.userTotalPlayed.value}'
+                    : '—',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.accentGreen,
+                ),
+              ),
+            ),
             label: 'Played',
             color: AppColors.accentGreen,
           ),
@@ -231,8 +235,9 @@ class HomePage extends GetView<HomeController> {
       child: Obx(() {
         final List<CategoryModel> categories = controller.filteredCategories;
         final bool isSearching = controller.searchQuery.value.trim().isNotEmpty;
-        final int itemCount =
-            isSearching ? categories.length : (categories.length > 6 ? 6 : categories.length);
+        final int itemCount = isSearching
+            ? categories.length
+            : (categories.length > 6 ? 6 : categories.length);
 
         return Column(
           children: <Widget>[
@@ -321,7 +326,7 @@ class HomePage extends GetView<HomeController> {
                   ),
                 ),
                 GestureDetector(
-                  onTap: () {},
+                  onTap: controller.navigateToLeaderboard,
                   child: const Text(
                     'See all',
                     style: TextStyle(

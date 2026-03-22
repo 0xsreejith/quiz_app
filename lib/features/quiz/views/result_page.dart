@@ -3,15 +3,25 @@ import 'package:get/get.dart';
 import 'package:quiz_app/core/constants/app_colors.dart';
 import 'package:quiz_app/core/constants/app_spacing.dart';
 import 'package:quiz_app/core/widgets/common_app_bar.dart';
-import 'package:quiz_app/features/quiz/controllers/quiz_controller.dart';
+import 'package:quiz_app/features/history/controllers/history_controller.dart';
+import 'package:quiz_app/features/home/controllers/home_controller.dart';
+import 'package:quiz_app/features/profile/controllers/profile_controller.dart';
 import 'package:quiz_app/features/quiz/widgets/correct_answers_card.dart';
 import 'package:quiz_app/features/quiz/widgets/final_score_card.dart';
+import 'package:quiz_app/features/rank/controllers/leaderboard_controller.dart';
+import 'package:quiz_app/routes/app_routes.dart';
 
-class ResultPage extends GetView<QuizController> {
+class ResultPage extends StatelessWidget {
   const ResultPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final Map<String, dynamic> args =
+        Get.arguments as Map<String, dynamic>? ?? {};
+    final int scoreValue = args['score'] as int? ?? 0;
+    final int totalQuestions = args['totalQuestions'] as int? ?? 0;
+    final RxInt score = scoreValue.obs;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       appBar: const CommonAppBar(
@@ -59,19 +69,19 @@ class ResultPage extends GetView<QuizController> {
                       ),
                     ),
                     const SizedBox(height: AppSpacing.xxxl),
-                    
+
                     FinalScoreCard(
-                      score: controller.score,
-                      totalQuestions: controller.totalQuestions,
+                      score: score,
+                      totalQuestions: totalQuestions,
                     ),
                     const SizedBox(height: AppSpacing.lg),
-                    
+
                     CorrectAnswersCard(
-                      score: controller.score,
-                      totalQuestions: controller.totalQuestions,
+                      score: score,
+                      totalQuestions: totalQuestions,
                     ),
                     const SizedBox(height: 48),
-                    
+
                     _buildActionButtons(),
                   ],
                 ),
@@ -87,7 +97,11 @@ class ResultPage extends GetView<QuizController> {
     return Column(
       children: [
         ElevatedButton(
-          onPressed: controller.goHome,
+          onPressed: () async {
+            Get.offAllNamed(AppRoutes.appShell);
+            await Future<void>.delayed(Duration.zero);
+            await _refreshShellData();
+          },
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
             padding: const EdgeInsets.symmetric(vertical: 18),
@@ -115,5 +129,30 @@ class ResultPage extends GetView<QuizController> {
         const SizedBox(height: AppSpacing.lg),
       ],
     );
+  }
+
+  Future<void> _refreshShellData() async {
+    await _safeRefresh<HomeController>((HomeController controller) {
+      return controller.loadData();
+    });
+    await _safeRefresh<HistoryController>((HistoryController controller) {
+      return controller.refreshHistory();
+    });
+    await _safeRefresh<ProfileController>((ProfileController controller) {
+      return controller.refreshAfterQuiz();
+    });
+    await _safeRefresh<LeaderboardController>((
+      LeaderboardController controller,
+    ) {
+      return controller.fetchLeaderboard();
+    });
+  }
+
+  Future<void> _safeRefresh<T>(
+    Future<void> Function(T controller) action,
+  ) async {
+    try {
+      await action(Get.find<T>());
+    } catch (_) {}
   }
 }
