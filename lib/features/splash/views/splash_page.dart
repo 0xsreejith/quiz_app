@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:quiz_app/core/constants/app_colors.dart';
 import 'package:quiz_app/core/constants/app_text_styles.dart';
-import 'package:quiz_app/features/splash/controllers/splash_controller.dart';
 import 'package:quiz_app/features/splash/views/widgets/animated_grid_bg.dart';
 import 'package:quiz_app/features/splash/views/widgets/splash_logo_tile.dart';
 
@@ -22,8 +20,6 @@ class _SplashPageState extends State<SplashPage>
   @override
   void initState() {
     super.initState();
-    // Ensure the controller runs its onReady navigation logic.
-    Get.find<SplashController>();
 
     _entranceController = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 1200));
@@ -78,14 +74,16 @@ class _SplashPageState extends State<SplashPage>
                       ),
                     ),
                     const SizedBox(height: 12),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: <Widget>[
                         _buildDivider(),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: Text(
                             'PRECISION ARCHITECT',
+                            textAlign: TextAlign.center,
                             style: AppTextStyles.miniLabel(
                                     color: AppColors.textMuted)
                                 .copyWith(letterSpacing: 2.5),
@@ -108,6 +106,7 @@ class _SplashPageState extends State<SplashPage>
     return Container(
       width: 40,
       height: 1,
+      margin: const EdgeInsets.symmetric(vertical: 8),
       color: AppColors.divider,
     );
   }
