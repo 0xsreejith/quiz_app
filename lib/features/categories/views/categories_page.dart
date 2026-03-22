@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:quiz_app/features/categories/controllers/categories_controller.dart';
+import 'package:quiz_app/features/home/data/category_icons.dart';
 import 'package:quiz_app/features/home/widgets/category_card.dart';
 
 class CategoriesPage extends GetView<CategoriesController> {
@@ -24,7 +25,7 @@ class CategoriesPage extends GetView<CategoriesController> {
             final category = controller.categories[index];
             return CategoryCard(
               category: category,
-              icon: Icons.category,
+              icon: CategoryIcons.forId(category.id),
               onTap: () => Get.toNamed(
                 '/quiz',
                 arguments: {

@@ -31,7 +31,7 @@ class LiveTimerCard extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: Colors.white.withOpacity(0.05),
+                  color: Colors.white.withValues(alpha: 0.05),
                   width: 1,
                 ),
               ),
@@ -44,7 +44,7 @@ class LiveTimerCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: Colors.white.withOpacity(0.05),
+                        color: Colors.white.withValues(alpha: 0.05),
                         width: 1,
                       ),
                     ),
@@ -55,7 +55,7 @@ class LiveTimerCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: Colors.white.withOpacity(0.05),
+                        color: Colors.white.withValues(alpha: 0.05),
                         width: 1,
                       ),
                     ),
@@ -64,12 +64,12 @@ class LiveTimerCard extends StatelessWidget {
                   Container(
                     width: 150,
                     height: 1,
-                    color: Colors.white.withOpacity(0.05),
+                    color: Colors.white.withValues(alpha: 0.05),
                   ),
                   Container(
                     width: 1,
                     height: 150,
-                    color: Colors.white.withOpacity(0.05),
+                    color: Colors.white.withValues(alpha: 0.05),
                   ),
                 ],
               ),
@@ -85,7 +85,7 @@ class LiveTimerCard extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w600,
-                  color: Colors.white.withOpacity(0.7),
+                  color: Colors.white.withValues(alpha: 0.7),
                   letterSpacing: 2.0,
                 ),
               ),
@@ -109,7 +109,7 @@ class LiveTimerCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w400,
-                      color: Colors.white.withOpacity(0.7),
+                      color: Colors.white.withValues(alpha: 0.7),
                     ),
                   ),
                 ],
@@ -123,7 +123,7 @@ class LiveTimerCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
-                      color: Colors.white.withOpacity(0.7),
+                      color: Colors.white.withValues(alpha: 0.7),
                       letterSpacing: 1.5,
                     ),
                   ),
@@ -145,7 +145,7 @@ class LiveTimerCard extends StatelessWidget {
                   Container(
                     height: 2,
                     width: double.infinity,
-                    color: Colors.white.withOpacity(0.1),
+                    color: Colors.white.withValues(alpha: 0.1),
                   ),
                   Container(
                     height: 2,

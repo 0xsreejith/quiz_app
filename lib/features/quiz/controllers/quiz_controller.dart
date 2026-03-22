@@ -44,6 +44,8 @@ class QuizController extends GetxController {
   bool get isLastQuestion => currentIndex.value == questions.length - 1;
   int get totalQuestions => questions.length;
 
+  int get correctAnswers => score.value;
+
   @override
   void onInit() {
     super.onInit();
@@ -116,42 +118,44 @@ class QuizController extends GetxController {
     final FirestoreService firestoreService = Get.find<FirestoreService>();
     final User? user = authService.currentUser;
 
-    if (user != null && categoryId != null) {
+    if (user != null) {
       try {
-        await firestoreService.saveCategoryScore(
+        // Save to global scores collection
+        await firestoreService.saveScore(
           uid: user.uid,
-          categoryId: categoryId!,
-          categoryName: categoryName.value ?? '',
-          categoryEmoji: categoryEmoji.value ?? '',
+          email: user.email ?? 'Unknown',
+          score: score.value,
+        );
+
+        // Save to category scores
+        if (categoryId != null) {
+          await firestoreService.saveCategoryScore(
+            uid: user.uid,
+            categoryId: categoryId!,
+            categoryName: categoryName.value ?? '',
+            categoryEmoji: categoryEmoji.value ?? '',
+            score: score.value,
+            totalQuestions: questions.length,
+          );
+        }
+
+        // Save to quiz history
+        await firestoreService.saveQuizHistory(
+          uid: user.uid,
+          categoryName: categoryName.value ?? 'General',
+          categoryEmoji: categoryEmoji.value ?? '📝',
           score: score.value,
           totalQuestions: questions.length,
+          correctAnswers: correctAnswers,
         );
       } catch (e) {
-        debugPrint('Error saving category score: $e');
+        debugPrint('Error saving quiz results: $e');
       }
     }
 
-    Get.offNamed(AppRoutes.result);
+    Get.toNamed(AppRoutes.result);
   }
 
-  Future<void> saveScore() async {
-    final User? user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      Get.snackbar('Error', 'You must be logged in to save your score.');
-      return;
-    }
-    try {
-      final FirestoreService firestoreService = FirestoreService();
-      await firestoreService.saveScore(
-        uid: user.uid,
-        email: user.email ?? 'Unknown',
-        score: score.value,
-      );
-      Get.snackbar('Success', 'Score saved successfully!');
-    } on Exception catch (e) {
-      Get.snackbar('Error', 'Failed to save score: $e');
-    }
-  }
 
   void goHome() {
     Get.offAllNamed(AppRoutes.appShell);

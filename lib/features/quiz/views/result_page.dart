@@ -87,7 +87,7 @@ class ResultPage extends GetView<QuizController> {
     return Column(
       children: [
         ElevatedButton(
-          onPressed: controller.saveScore,
+          onPressed: controller.goHome,
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
             padding: const EdgeInsets.symmetric(vertical: 18),
@@ -100,7 +100,7 @@ class ResultPage extends GetView<QuizController> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                'Save Score',
+                'Back to Home',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -108,36 +108,7 @@ class ResultPage extends GetView<QuizController> {
                 ),
               ),
               SizedBox(width: 8),
-              Icon(Icons.save_outlined, color: Colors.white, size: 20),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        OutlinedButton(
-          onPressed: controller.goHome,
-          style: OutlinedButton.styleFrom(
-            backgroundColor: AppColors.white,
-            side: const BorderSide(color: Colors.transparent),
-            padding: const EdgeInsets.symmetric(vertical: 18),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-            elevation: 1,
-            shadowColor: Colors.black.withValues(alpha: 0.05),
-          ),
-          child: const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'Return Home',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.primary,
-                ),
-              ),
-              SizedBox(width: 8),
-              Icon(Icons.refresh, color: AppColors.primary, size: 20),
+              Icon(Icons.home_outlined, color: Colors.white, size: 20),
             ],
           ),
         ),

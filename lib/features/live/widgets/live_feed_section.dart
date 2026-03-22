@@ -73,7 +73,7 @@ class LiveFeedSection extends StatelessWidget {
           time,
           style: TextStyle(
             fontSize: 10,
-            color: AppColors.textMuted.withOpacity(0.5),
+            color: AppColors.textMuted.withValues(alpha: 0.5),
             fontWeight: FontWeight.w600,
           ),
         ),

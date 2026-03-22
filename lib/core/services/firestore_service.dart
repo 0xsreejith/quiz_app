@@ -102,4 +102,94 @@ class FirestoreService {
         .map((QueryDocumentSnapshot<Map<String, dynamic>> doc) => doc.data())
         .toList();
   }
+
+  Future<void> saveQuizHistory({
+    required String uid,
+    required String categoryName,
+    required String categoryEmoji,
+    required int score,
+    required int totalQuestions,
+    required int correctAnswers,
+  }) async {
+    await _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('quizHistory')
+        .add(<String, dynamic>{
+      'categoryName': categoryName,
+      'categoryEmoji': categoryEmoji,
+      'score': score,
+      'totalQuestions': totalQuestions,
+      'correctAnswers': correctAnswers,
+      'accuracy': (correctAnswers / totalQuestions * 100).round(),
+      'playedAt': FieldValue.serverTimestamp(),
+    });
+
+    await _updateUserStats(
+      uid: uid,
+      newScore: score,
+      newAccuracy: (correctAnswers / totalQuestions * 100).round(),
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getQuizHistory(String uid) async {
+    final QuerySnapshot<Map<String, dynamic>> snapshot = await _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('quizHistory')
+        .orderBy('playedAt', descending: true)
+        .limit(20)
+        .get();
+    return snapshot.docs
+        .map((QueryDocumentSnapshot<Map<String, dynamic>> doc) => doc.data())
+        .toList();
+  }
+
+  Future<Map<String, dynamic>> getUserStats(String uid) async {
+    final DocumentSnapshot<Map<String, dynamic>> snap =
+        await _firestore.collection('users').doc(uid).get();
+    if (!snap.exists) {
+      return <String, dynamic>{
+        'totalPlayed': 0,
+        'bestScore': 0,
+        'avgAccuracy': 0,
+      };
+    }
+    final Map<String, dynamic> data = snap.data()!;
+    return <String, dynamic>{
+      'totalPlayed': data['totalPlayed'] as int? ?? 0,
+      'bestScore': data['bestScore'] as int? ?? 0,
+      'avgAccuracy': data['avgAccuracy'] as int? ?? 0,
+    };
+  }
+
+  Future<void> _updateUserStats({
+    required String uid,
+    required int newScore,
+    required int newAccuracy,
+  }) async {
+    final DocumentReference<Map<String, dynamic>> ref =
+        _firestore.collection('users').doc(uid);
+    await _firestore.runTransaction((Transaction tx) async {
+      final DocumentSnapshot<Map<String, dynamic>> snap = await tx.get(ref);
+      final Map<String, dynamic> data = snap.data() ?? <String, dynamic>{};
+      final int prevPlayed = data['totalPlayed'] as int? ?? 0;
+      final int prevBest = data['bestScore'] as int? ?? 0;
+      final double prevAvg =
+          (data['avgAccuracy'] as num?)?.toDouble() ?? 0;
+      final int newTotal = prevPlayed + 1;
+      final int newBest = newScore > prevBest ? newScore : prevBest;
+      final double newAvg =
+          ((prevAvg * prevPlayed) + newAccuracy) / newTotal;
+      tx.set(
+        ref,
+        <String, dynamic>{
+          'totalPlayed': newTotal,
+          'bestScore': newBest,
+          'avgAccuracy': newAvg.round(),
+        },
+        SetOptions(merge: true),
+      );
+    });
+  }
 }

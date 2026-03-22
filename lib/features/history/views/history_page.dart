@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:quiz_app/core/constants/app_colors.dart';
@@ -23,66 +24,112 @@ class HistoryPage extends GetView<HistoryController> {
             children: [
               _buildHeader(),
               AppSpacing.verticalXxl,
-              _buildTotalAccuracyCard(),
+              Obx(() => _buildTotalAccuracyCard()),
               AppSpacing.verticalLg,
-              _buildQuizzesCompletedCard(),
+              Obx(() => _buildQuizzesCompletedCard()),
               AppSpacing.verticalXxxl,
               const SectionHeader(title: 'RECENT ATTEMPTS'),
               AppSpacing.verticalLg,
-              const AttemptCard(
-                icon: Icons.terminal,
-                iconColor: AppColors.darkNavy,
-                iconBgColor: AppColors.chipBgBlue,
-                level: 'EXPERT',
-                levelColor: AppColors.emerald,
-                levelBgColor: AppColors.chipBgGreen,
-                date: 'OCT 24, 2023 • 14:30',
-                title: 'Advanced Quantum\nComputing',
-                subtitle: '18/20 Correct • 12m 45s Duration',
-                score: '900',
-                status: 'SYNCED',
-                statusColor: AppColors.emerald,
-                statusIcon: Icons.check_circle,
-                actionText: 'VIEW ANALYSIS',
-                actionColor: AppColors.darkNavy,
-              ),
-              AppSpacing.verticalLg,
-              const AttemptCard(
-                icon: Icons.psychology,
-                iconColor: AppColors.indigo,
-                iconBgColor: AppColors.chipBgSlate,
-                level: 'INTERMEDIATE',
-                levelColor: AppColors.indigoMid,
-                levelBgColor: AppColors.chipBgBlue,
-                date: 'OCT 23, 2023 • 09:12',
-                title: 'Cognitive Behavioral\nLogic',
-                subtitle: '14/20 Correct • 08m 12s Duration',
-                score: '700',
-                status: 'PENDING SYNC',
-                statusColor: AppColors.darkNavy,
-                statusIcon: Icons.cloud_upload,
-                actionText: 'RETRY NOW',
-                actionColor: AppColors.darkNavy,
-                hasLeftBorder: true,
-              ),
-              AppSpacing.verticalLg,
-              const AttemptCard(
-                icon: Icons.architecture,
-                iconColor: AppColors.darkNavy,
-                iconBgColor: AppColors.chipBgBlue,
-                level: 'BEGINNER',
-                levelColor: AppColors.blueBright,
-                levelBgColor: AppColors.chipBgLightBlue,
-                date: 'OCT 22, 2023 • 18:45',
-                title: 'Ancient Roman\nGovernance',
-                subtitle: '08/20 Correct • 15m 02s Duration',
-                score: '400',
-                status: 'SYNCED',
-                statusColor: AppColors.emerald,
-                statusIcon: Icons.check_circle,
-                actionText: 'REVIEW ERRORS',
-                actionColor: AppColors.darkNavy,
-              ),
+              Obx(() {
+                if (controller.isLoading.value) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(32),
+                      child: CircularProgressIndicator(
+                          color: AppColors.primary),
+                    ),
+                  );
+                }
+
+                if (controller.errorMessage.value.isNotEmpty) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.error_outline,
+                              color: AppColors.textMuted, size: 48),
+                          const SizedBox(height: 16),
+                          const Text('Unable to load data',
+                              style: AppTextStyles.cardTitle),
+                          const SizedBox(height: 8),
+                          TextButton(
+                            onPressed: controller.refreshHistory,
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+
+                if (controller.quizHistory.isEmpty) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Icon(Icons.inbox_outlined,
+                              color: AppColors.textMuted, size: 48),
+                          SizedBox(height: 16),
+                          Text('No attempts yet',
+                              style: AppTextStyles.cardTitle),
+                          SizedBox(height: 8),
+                          Text(
+                            'Complete a quiz to see your results here',
+                            style: TextStyle(
+                                color: AppColors.textMuted, fontSize: 13),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+
+                return Column(
+                  children: controller.quizHistory
+                      .map((Map<String, dynamic> history) {
+                    final int accuracy = history['accuracy'] as int? ?? 0;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: AttemptCard(
+                        icon: Icons.quiz_outlined,
+                        iconColor: AppColors.darkNavy,
+                        iconBgColor: AppColors.chipBgBlue,
+                        level: accuracy >= 90
+                            ? 'EXPERT'
+                            : accuracy >= 70
+                                ? 'INTERMEDIATE'
+                                : 'BEGINNER',
+                        levelColor: accuracy >= 90
+                            ? AppColors.emerald
+                            : accuracy >= 70
+                                ? AppColors.indigoMid
+                                : AppColors.blueBright,
+                        levelBgColor: accuracy >= 90
+                            ? AppColors.chipBgGreen
+                            : accuracy >= 70
+                                ? AppColors.chipBgBlue
+                                : AppColors.chipBgLightBlue,
+                        date: _formatDate(history['playedAt']),
+                        title:
+                            '${history['categoryEmoji'] ?? '📝'} ${history['categoryName'] ?? 'Quiz'}',
+                        subtitle:
+                            '${history['correctAnswers'] ?? 0}/${history['totalQuestions'] ?? 0} Correct',
+                        score: '${history['score'] ?? 0}',
+                        status: 'SYNCED',
+                        statusColor: AppColors.emerald,
+                        statusIcon: Icons.check_circle,
+                        actionText: 'VIEW DETAILS',
+                        actionColor: AppColors.darkNavy,
+                      ),
+                    );
+                  }).toList(),
+                );
+              }),
               const SizedBox(height: 48),
               const FooterSection(
                 title: 'END OF TRANSMISSION',
@@ -95,6 +142,19 @@ class HistoryPage extends GetView<HistoryController> {
         ),
       ),
     );
+  }
+
+  String _formatDate(dynamic timestamp) {
+    if (timestamp == null) return 'JUST NOW';
+    if (timestamp is Timestamp) {
+      final DateTime dt = timestamp.toDate();
+      const List<String> months = <String>[
+        'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
+        'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC',
+      ];
+      return '${months[dt.month - 1]} ${dt.day}, ${dt.year} • ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    }
+    return '';
   }
 
   Widget _buildHeader() {
@@ -195,27 +255,8 @@ class HistoryPage extends GetView<HistoryController> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text('84%',
+              Text('${controller.avgAccuracy}%',
                   style: AppTextStyles.heroNumber(color: AppColors.darkNavy)),
-              const SizedBox(width: 12),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8.0),
-                child: Row(
-                  children: [
-                    Icon(Icons.trending_up,
-                        color: Colors.green.shade700, size: 16),
-                    const SizedBox(width: 4),
-                    Text(
-                      '+2.4',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.green.shade700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
               const Spacer(),
               Container(
                 width: 48,
@@ -241,7 +282,7 @@ class HistoryPage extends GetView<HistoryController> {
                 ),
               ),
               FractionallySizedBox(
-                widthFactor: 0.84,
+                widthFactor: controller.avgAccuracy / 100,
                 child: Container(
                   height: 4,
                   decoration: BoxDecoration(
@@ -270,7 +311,7 @@ class HistoryPage extends GetView<HistoryController> {
           Text('QUIZZES COMPLETED',
               style: AppTextStyles.miniLabel(color: Colors.white70)),
           AppSpacing.verticalLg,
-          Text('128',
+          Text('${controller.totalPlayed}',
               style: AppTextStyles.heroNumber(color: Colors.white)),
           AppSpacing.verticalXxl,
           Text(
