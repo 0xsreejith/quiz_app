@@ -11,7 +11,7 @@ class LeaderboardController extends GetxController {
   final RxBool isLoading = false.obs;
   final RxnString errorMessage = RxnString();
 
-  /// The signed-in user's own score document (fetched separately).
+  /// The signed-in user's own leaderboard document.
   final Rxn<Map<String, dynamic>> userScoreDoc = Rxn<Map<String, dynamic>>();
 
   /// The user's authoritative global rank (not limited to top-50).
@@ -31,24 +31,20 @@ class LeaderboardController extends GetxController {
       final String? uid = _authService.currentUser?.uid;
 
       if (uid != null) {
-        final List<Object?> results = await Future.wait(<Future<Object?>>[
-          _firestoreService.getTopScores(limit: 50),
-          _firestoreService.getUserScoreDoc(uid),
-          _firestoreService.getUserGlobalRank(uid),
-          _firestoreService.getRankedUserCount(),
-        ]);
+        final Map<String, dynamic> data = await _firestoreService
+            .getLeaderboardData(uid: uid, displayLimit: 50);
 
-        scores.assignAll(results[0] as List<Map<String, dynamic>>);
-        userScoreDoc.value = results[1] as Map<String, dynamic>?;
-        userGlobalRank.value = results[2] as int;
-        totalRankedUsers.value = results[3] as int;
+        scores.assignAll(data['topScores'] as List<Map<String, dynamic>>);
+        userScoreDoc.value = data['userScoreDoc'] as Map<String, dynamic>?;
+        userGlobalRank.value = data['userRank'] as int;
+        totalRankedUsers.value = data['totalRanked'] as int;
       } else {
-        final List<Object> results = await Future.wait(<Future<Object>>[
-          _firestoreService.getTopScores(limit: 50),
-          _firestoreService.getRankedUserCount(),
-        ]);
-        scores.assignAll(results[0] as List<Map<String, dynamic>>);
-        totalRankedUsers.value = results[1] as int;
+        final List<Map<String, dynamic>> result = await _firestoreService
+            .getTopScores(limit: 50);
+        scores.assignAll(result);
+        userScoreDoc.value = null;
+        userGlobalRank.value = 0;
+        totalRankedUsers.value = result.length;
       }
     } on FirebaseException catch (error) {
       errorMessage.value = _buildErrorMessage(error);

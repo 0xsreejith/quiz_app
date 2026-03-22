@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:quiz_app/core/constants/app_colors.dart';
 import 'package:quiz_app/core/constants/app_spacing.dart';
 
 class CorrectAnswersCard extends StatelessWidget {
   const CorrectAnswersCard({
-    required this.score,
+    required this.correctAnswers,
     required this.totalQuestions,
     super.key,
   });
 
-  final RxInt score;
+  final int correctAnswers;
   final int totalQuestions;
 
   @override
@@ -45,21 +44,18 @@ class CorrectAnswersCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
             children: [
-              Obx(() => Text(
-                '${score.value}',
+              Text(
+                '$correctAnswers',
                 style: const TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
                   color: AppColors.textDarkest,
                 ),
-              )),
+              ),
               const SizedBox(width: 4),
               Text(
                 '/ $totalQuestions',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey.shade400,
-                ),
+                style: TextStyle(fontSize: 16, color: Colors.grey.shade400),
               ),
             ],
           ),
