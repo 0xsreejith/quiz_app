@@ -6,8 +6,6 @@ import 'package:quiz_app/core/utils/display_helpers.dart';
 import 'package:quiz_app/core/widgets/tag_chip.dart';
 
 /// Profile header block: avatar + gradient badge + name + email + tags.
-///
-/// Also includes the settings icon positioned top-right.
 class ProfileAvatar extends StatelessWidget {
   const ProfileAvatar({
     super.key,
@@ -22,55 +20,24 @@ class ProfileAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: <Widget>[
-        Stack(
-          clipBehavior: Clip.none,
-          children: <Widget>[
-            // Settings icon (top-right)
-            Positioned(
-              right: 0,
-              top: 0,
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppColors.cardBg,
-                  borderRadius: BorderRadius.circular(AppSpacing.iconBoxRadius),
-                ),
-                child: const Icon(
-                  Icons.settings_outlined,
-                  color: AppColors.textMuted,
-                  size: 22,
-                ),
-              ),
-            ),
-
-            // Avatar + Badge + Name + Email + Tags
-            Center(
-              child: Column(
-                children: <Widget>[
-                  _buildAvatarWithBadge(),
-                  const SizedBox(height: 20),
-                  Text(
-                    DisplayHelpers.formatDisplayName(email),
-                    style: AppTextStyles.displayName,
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    DisplayHelpers.formatEmailDisplay(email),
-                    style: AppTextStyles.subtitleMuted,
-                  ),
-                  const SizedBox(height: 14),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    alignment: WrapAlignment.center,
-                    children:
-                        tags.map((String tag) => TagChip(label: tag)).toList(),
-                  ),
-                ],
-              ),
-            ),
-          ],
+        _buildAvatarWithBadge(),
+        const SizedBox(height: 20),
+        Text(
+          DisplayHelpers.formatDisplayName(email),
+          style: AppTextStyles.displayName,
+        ),
+        const SizedBox(height: 6),
+        Text(
+          DisplayHelpers.formatEmailDisplay(email),
+          style: AppTextStyles.subtitleMuted,
+        ),
+        const SizedBox(height: 14),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          alignment: WrapAlignment.center,
+          children:
+              tags.map((String tag) => TagChip(label: tag)).toList(),
         ),
       ],
     );

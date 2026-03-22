@@ -12,6 +12,7 @@ class CommonAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.trailingLabel,
     this.onTrailingTap,
     this.isRedTrailing = false,
+    this.onAvatarTap,
   });
 
   final String title;
@@ -23,6 +24,7 @@ class CommonAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String? trailingLabel;
   final VoidCallback? onTrailingTap;
   final bool isRedTrailing;
+  final VoidCallback? onAvatarTap;
 
   @override
   Widget build(BuildContext context) {
@@ -71,7 +73,8 @@ class CommonAppBar extends StatelessWidget implements PreferredSizeWidget {
         if (actions != null) ...actions!
         else ...[
           if (trailingLabel != null) const SizedBox(width: AppSpacing.md),
-          Center(
+          GestureDetector(
+            onTap: onAvatarTap,
             child: Container(
               width: 32,
               height: 32,
