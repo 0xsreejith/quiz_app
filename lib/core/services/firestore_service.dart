@@ -201,8 +201,9 @@ class FirestoreService {
     bool forceServer = false,
   }) async {
     final GetOptions? options = _getOptions(forceServer: forceServer);
-    List<Map<String, dynamic>> allScores =
-        await _getUniqueScores(forceServer: forceServer);
+    List<Map<String, dynamic>> allScores = await _getUniqueScores(
+      forceServer: forceServer,
+    );
 
     int userIndex = allScores.indexWhere(
       (Map<String, dynamic> s) => s['uid'] == uid || s['docId'] == uid,
@@ -227,8 +228,9 @@ class FirestoreService {
     }
 
     final int userRank = userIndex == -1 ? 0 : userIndex + 1;
-    final Map<String, dynamic>? userScoreDoc =
-        userIndex == -1 ? null : allScores[userIndex];
+    final Map<String, dynamic>? userScoreDoc = userIndex == -1
+        ? null
+        : allScores[userIndex];
 
     final List<Map<String, dynamic>> topScores = allScores.length > displayLimit
         ? allScores.sublist(0, displayLimit)
@@ -374,13 +376,16 @@ class FirestoreService {
     return badges;
   }
 
-  Future<List<Map<String, dynamic>>> getCategoryScores(String uid) async {
+  Future<List<Map<String, dynamic>>> getCategoryScores(
+    String uid, {
+    bool forceServer = false,
+  }) async {
     final QuerySnapshot<Map<String, dynamic>> snapshot = await _firestore
         .collection('users')
         .doc(uid)
         .collection('categoryScores')
         .orderBy('maxScore', descending: true)
-        .get();
+        .get(forceServer ? const GetOptions(source: Source.server) : null);
 
     return snapshot.docs
         .map((QueryDocumentSnapshot<Map<String, dynamic>> doc) => doc.data())
@@ -580,8 +585,9 @@ class FirestoreService {
           .limit(fetchLimit)
           .get(options);
 
-      final List<Map<String, dynamic>> uniqueScores =
-          _collectUniqueScores(snapshot.docs)..sort(_compareScoreDocs);
+      final List<Map<String, dynamic>> uniqueScores = _collectUniqueScores(
+        snapshot.docs,
+      )..sort(_compareScoreDocs);
 
       if (limit != null && uniqueScores.length > limit) {
         return uniqueScores.sublist(0, limit);
